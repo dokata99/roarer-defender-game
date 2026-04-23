@@ -9,32 +9,66 @@ import {
   GRID_OFFSET_Y,
   COLORS,
   SCENE_KEYS,
+  PORTAL_CELLS,
+  CASTLE_CELLS,
+  PATH_LINE_COLOR,
+  PATH_LINE_ALPHA,
+  PATH_LINE_WIDTH,
+  PATH_LINE_DEPTH,
 } from '../config/constants';
-import { GridManager } from '../systems/GridManager';
+import { GridManager, type CellCoord } from '../systems/GridManager';
+import { PathfindingManager } from '../systems/PathfindingManager';
 import { HUD } from '../ui/HUD';
 import { BottomBar } from '../ui/BottomBar';
 
 export class GameScene extends Phaser.Scene {
   private grid!: GridManager;
+  private pathfinder!: PathfindingManager;
+  private pathLineGraphics!: Phaser.GameObjects.Graphics;
+  private cachedPaths: Map<string, CellCoord[]> = new Map();
 
   constructor() {
     super(SCENE_KEYS.GAME);
   }
 
-  create() {
+  async create() {
     this.cameras.main.setBackgroundColor(COLORS.background);
     this.grid = new GridManager();
+    this.pathfinder = new PathfindingManager(this.grid, PORTAL_CELLS, CASTLE_CELLS);
 
     this.drawGridCells();
     this.drawGridLines();
     this.drawPortalArt();
     this.drawCastleArt();
 
+    this.pathLineGraphics = this.add.graphics();
+    this.pathLineGraphics.setDepth(PATH_LINE_DEPTH);
+
+    this.cachedPaths = await this.pathfinder.recalculatePaths(new Set());
+    this.drawPathLines();
+
     new HUD(this);
     new BottomBar(this);
 
     this.addBackButton();
     this.addDevDefeatButton();
+  }
+
+  private drawPathLines() {
+    this.pathLineGraphics.clear();
+    this.pathLineGraphics.lineStyle(PATH_LINE_WIDTH, PATH_LINE_COLOR, PATH_LINE_ALPHA);
+
+    for (const path of this.cachedPaths.values()) {
+      if (path.length < 2) continue;
+      const start = this.grid.cellToPixel(path[0].col, path[0].row);
+      this.pathLineGraphics.beginPath();
+      this.pathLineGraphics.moveTo(start.x, start.y);
+      for (let i = 1; i < path.length; i++) {
+        const p = this.grid.cellToPixel(path[i].col, path[i].row);
+        this.pathLineGraphics.lineTo(p.x, p.y);
+      }
+      this.pathLineGraphics.strokePath();
+    }
   }
 
   private drawGridCells() {
