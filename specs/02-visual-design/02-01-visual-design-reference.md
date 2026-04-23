@@ -19,7 +19,7 @@ fight, separate them with a dark panel or border.
 
 ### Primary Palette for Roarer Defense
 
-| Role            | Color Name         | Hex       | 0x (Phaser)  | Usage                                       |
+| Role            | Color Name         | Hex       | 0x (Phaser)  | Usage                                        |
 |-----------------|--------------------|-----------|--------------|----------------------------------------------|
 | Background      | Deep Void          | `#0B0C10` | `0x0B0C10`   | Scene backgrounds, large fills               |
 | Surface         | Dark Surface       | `#141726` | `0x141726`   | Grid cells, panels, card backgrounds         |
