@@ -63,16 +63,16 @@ export class BottomBar {
 
   private renderTowerPicker(state: BottomBarViewState): void {
     const types: TowerType[] = ['splash', 'sniper'];
-    const startX = 40;
-    const buttonSize = 88;
-    const statsWidth = 150;
-    const statsGap = 10;
-    const slotGap = 24;
+    const startX = 32;
+    const buttonSize = 60;
+    const statsWidth = 130;
+    const statsGap = 8;
+    const slotGap = 18;
     const slotWidth = buttonSize + statsGap + statsWidth;
 
     types.forEach((type, i) => {
       const x = startX + i * (slotWidth + slotGap);
-      const y = this.barY + 16;
+      const y = this.barY + 10;
       const cfg = TOWER_CONFIGS[type];
       const stats = this.context.getTowerStats(type, 1);
       const inPlacement = state.placementType === type;
@@ -99,10 +99,10 @@ export class BottomBar {
       const label = this.scene.add
         .text(
           x + buttonSize / 2,
-          y + buttonSize + 6,
+          y + buttonSize + 4,
           inPlacement ? 'Cancel (X)' : cfg.displayName,
           {
-            fontSize: '14px',
+            fontSize: '12px',
             color: affordable ? COLORS.textPrimary : COLORS.textMuted,
             fontFamily: 'sans-serif',
             fontStyle: 'bold',
@@ -111,8 +111,8 @@ export class BottomBar {
         .setOrigin(0.5, 0);
 
       const costText = this.scene.add
-        .text(x + buttonSize / 2, y + buttonSize + 26, `${stats.cost}g`, {
-          fontSize: '13px',
+        .text(x + buttonSize / 2, y + buttonSize + 20, `${stats.cost}g`, {
+          fontSize: '11px',
           color: affordable ? COLORS.textGold : COLORS.textMuted,
           fontFamily: 'sans-serif',
         })
@@ -120,10 +120,10 @@ export class BottomBar {
 
       const statsText = this.scene.add
         .text(x + buttonSize + statsGap, y, this.towerStatsSummary(type), {
-          fontSize: '12px',
+          fontSize: '11px',
           color: COLORS.textMuted,
           fontFamily: 'sans-serif',
-          lineSpacing: 2,
+          lineSpacing: 1,
           wordWrap: { width: statsWidth, useAdvancedWrap: true },
         })
         .setOrigin(0, 0);
@@ -134,11 +134,11 @@ export class BottomBar {
     const lastSlotRight = startX + types.length * slotWidth + (types.length - 1) * slotGap;
     const hint = this.scene.add
       .text(
-        lastSlotRight + 16,
-        this.barY + BOTTOM_BAR_HEIGHT - 6,
+        lastSlotRight + 12,
+        this.barY + BOTTOM_BAR_HEIGHT - 4,
         'Left-click grid to place · Right-click / ESC to cancel',
         {
-          fontSize: '12px',
+          fontSize: '11px',
           color: COLORS.textMuted,
           fontFamily: 'sans-serif',
           fontStyle: 'italic',
@@ -163,10 +163,10 @@ export class BottomBar {
   }
 
   private renderStartWave(state: BottomBarViewState): void {
-    const width = 220;
-    const height = 80;
-    const x = CANVAS_WIDTH - width - 40;
-    const y = this.barY + 24;
+    const width = 170;
+    const height = 62;
+    const x = CANVAS_WIDTH - width - 32;
+    const y = this.barY + 16;
 
     const rect = this.scene.add.rectangle(x + width / 2, y + height / 2, width, height, 0x225533);
     rect.setStrokeStyle(3, 0x55ff99, 0.9);
@@ -176,8 +176,8 @@ export class BottomBar {
     rect.on('pointerdown', () => this.controller.onStartWave());
 
     const label = this.scene.add
-      .text(x + width / 2, y + height / 2 - 10, 'Start Wave', {
-        fontSize: '22px',
+      .text(x + width / 2, y + height / 2 - 8, 'Start Wave', {
+        fontSize: '17px',
         color: COLORS.textPrimary,
         fontFamily: 'sans-serif',
         fontStyle: 'bold',
@@ -185,8 +185,8 @@ export class BottomBar {
       .setOrigin(0.5);
 
     const preview = this.scene.add
-      .text(x + width / 2, y + height / 2 + 18, state.nextWaveLabel ?? '—', {
-        fontSize: '13px',
+      .text(x + width / 2, y + height / 2 + 14, state.nextWaveLabel ?? '—', {
+        fontSize: '11px',
         color: COLORS.textAccent,
         fontFamily: 'sans-serif',
       })
@@ -198,11 +198,11 @@ export class BottomBar {
   private renderWaveInfo(state: BottomBarViewState): void {
     const info = this.scene.add
       .text(
-        40,
-        this.barY + BOTTOM_BAR_HEIGHT / 2,
+        32,
+        this.barY + BOTTOM_BAR_HEIGHT / 2 - 10,
         `Wave in progress — ${state.currentWaveLabel ?? ''}`,
         {
-          fontSize: '18px',
+          fontSize: '15px',
           color: COLORS.textAccent,
           fontFamily: 'sans-serif',
         },
@@ -212,11 +212,11 @@ export class BottomBar {
 
     const hint = this.scene.add
       .text(
-        40,
-        this.barY + BOTTOM_BAR_HEIGHT / 2 + 24,
+        32,
+        this.barY + BOTTOM_BAR_HEIGHT / 2 + 14,
         'Click a tower to upgrade it. Placing and selling are disabled during waves.',
         {
-          fontSize: '12px',
+          fontSize: '11px',
           color: COLORS.textMuted,
           fontFamily: 'sans-serif',
           fontStyle: 'italic',
@@ -229,9 +229,9 @@ export class BottomBar {
   }
 
   private addPauseButton(): void {
-    const width = 140;
-    const height = 48;
-    const x = CANVAS_WIDTH - width - 40;
+    const width = 110;
+    const height = 40;
+    const x = CANVAS_WIDTH - width - 32;
     const y = this.barY + BOTTOM_BAR_HEIGHT / 2 - height / 2;
 
     const rect = this.scene.add.rectangle(x + width / 2, y + height / 2, width, height, 0x333344);
@@ -240,7 +240,7 @@ export class BottomBar {
     rect.on('pointerdown', () => this.controller.onPause());
     const label = this.scene.add
       .text(x + width / 2, y + height / 2, 'Pause', {
-        fontSize: '18px',
+        fontSize: '15px',
         color: COLORS.textPrimary,
         fontFamily: 'sans-serif',
         fontStyle: 'bold',
@@ -254,12 +254,12 @@ export class BottomBar {
     const stats = tower.getStats();
     const cfg = TOWER_CONFIGS[tower.type];
 
-    const infoX = 40;
-    const infoY = this.barY + 20;
+    const infoX = 32;
+    const infoY = this.barY + 10;
 
     const header = this.scene.add
       .text(infoX, infoY, `${cfg.displayName} Tower · Level ${tower.level}`, {
-        fontSize: '20px',
+        fontSize: '16px',
         color: COLORS.textPrimary,
         fontFamily: 'sans-serif',
         fontStyle: 'bold',
@@ -274,31 +274,32 @@ export class BottomBar {
     if (stats.splashRadiusTiles) lines.push(`Splash radius: ${stats.splashRadiusTiles} tiles`);
 
     const body = this.scene.add
-      .text(infoX, infoY + 32, lines.join('\n'), {
-        fontSize: '13px',
+      .text(infoX, infoY + 24, lines.join('\n'), {
+        fontSize: '11px',
         color: COLORS.textMuted,
         fontFamily: 'sans-serif',
-        lineSpacing: 4,
+        lineSpacing: 2,
       })
       .setOrigin(0, 0);
 
     this.layer.add([header, body]);
 
-    // Action buttons on the right
-    const btnWidth = 160;
-    const btnHeight = 46;
-    const btnX = CANVAS_WIDTH - btnWidth - 40;
-    const upgradeY = infoY;
-    const sellY = upgradeY + btnHeight + 10;
-    const deselectY = sellY + btnHeight + 10;
+    // Action buttons on the right — stacked horizontally to fit the shorter bar.
+    const btnWidth = 130;
+    const btnHeight = 34;
+    const btnGap = 8;
+    const btnY = this.barY + (BOTTOM_BAR_HEIGHT - btnHeight) / 2;
+    const deselectX = CANVAS_WIDTH - btnWidth - 32;
+    const sellX = deselectX - btnWidth - btnGap;
+    const upgradeX = sellX - btnWidth - btnGap;
 
     // Upgrade button (allowed in build and wave phase)
     if (tower.canUpgrade()) {
       const upgradeCost = tower.upgradeCost();
       const canAfford = state.gold >= upgradeCost;
       this.makeButton(
-        btnX,
-        upgradeY,
+        upgradeX,
+        btnY,
         btnWidth,
         btnHeight,
         `Upgrade (${upgradeCost}g)`,
@@ -308,16 +309,16 @@ export class BottomBar {
       );
     } else {
       const rect = this.scene.add.rectangle(
-        btnX + btnWidth / 2,
-        upgradeY + btnHeight / 2,
+        upgradeX + btnWidth / 2,
+        btnY + btnHeight / 2,
         btnWidth,
         btnHeight,
         0x333344,
       );
       rect.setStrokeStyle(2, 0x555566, 0.6);
       const text = this.scene.add
-        .text(btnX + btnWidth / 2, upgradeY + btnHeight / 2, 'Max Level', {
-          fontSize: '16px',
+        .text(upgradeX + btnWidth / 2, btnY + btnHeight / 2, 'Max Level', {
+          fontSize: '13px',
           color: COLORS.textMuted,
           fontFamily: 'sans-serif',
         })
@@ -328,8 +329,8 @@ export class BottomBar {
     // Sell button — build phase only
     if (state.phase === 'build') {
       this.makeButton(
-        btnX,
-        sellY,
+        sellX,
+        btnY,
         btnWidth,
         btnHeight,
         `Sell (+${tower.sellRefund()}g)`,
@@ -341,15 +342,14 @@ export class BottomBar {
 
     // Deselect
     this.makeButton(
-      btnX,
-      state.phase === 'build' ? deselectY : sellY,
+      deselectX,
+      btnY,
       btnWidth,
       btnHeight,
       'Deselect',
       0x444455,
       true,
       () => this.controller.onDeselectTower(),
-      36,
     );
   }
 
@@ -376,7 +376,7 @@ export class BottomBar {
     rect.setStrokeStyle(2, 0xffffff, 0.7);
     const label = this.scene.add
       .text(x + w / 2, y + boxH / 2, text, {
-        fontSize: '16px',
+        fontSize: '13px',
         color: enabled ? COLORS.textPrimary : COLORS.textMuted,
         fontFamily: 'sans-serif',
         fontStyle: 'bold',
