@@ -100,9 +100,17 @@ Each tower should have:
 - Ripple ring expands outward from tower (like a firewall "burst")
 - Splash explosion: expanding ring of cyan that fades (already partially implemented)
 
-**Projectile:** Small cyan orb with a trailing glow, speed 400px/s
+**Air-blind state (flying enemy in range but untargetable):**
+Firewall cannot target flying enemies (see Packet section and `01-04` L201).
+When the only enemies in range are flying, the Firewall's range ring (when selected)
+shifts from its normal cyan (`#00E5FF`) to a **muted gray** (`#667788` at 20% opacity),
+and the core's idle pulse slows by 50%. This signals "I can see it but I can't reach it"
+without a tutorial. On hover, the tooltip adds a red line: `"Cannot target airborne threats."`
 
-### Sniper Tower --> "KILLSWITCH" or "PATCHER"
+**Projectile:** Small cyan orb (`#00E5FF` core, white center) with a trailing glow, speed 400px/s.
+Supersedes the yellow placeholder in `01-01` L493 — the Firewall is cyan-coded end to end.
+
+### Sniper Tower --> "KILLSWITCH"
 
 **Cyber metaphor:** A targeted security patch or precision kill command.
 
@@ -242,13 +250,49 @@ Differentiation beyond color:
 - Screen flash (white overlay, 50ms, 30% opacity)
 - 600ms total duration
 
+### Flying Enemy --> "PACKET"
+
+**Cyber metaphor:** A routed network packet flying above the grid -- only precision
+deep-inspection tools (Killswitch) can intercept it. Firewall splash cannot target it.
+See `01-08` §04 for the full design contract and `01-04` for wave placement.
+
+**Visual design:**
+- **Shape:** Glowing chevron (arrow-like, pointing in movement direction), radius 8px
+  - Draw as a 3-vertex triangle with the point forward, tail split into two trailing fins
+- **Color:** Neon Magenta (`#FF3CF2`) -- distinct from any ground enemy, reads as
+  airborne/high-priority. (Alternative: Holo Blue `#3A86FF` if magenta collides with
+  on-screen Boss glow.)
+- **Inner detail:** Thin bright core line along the chevron axis, white
+- **Outline:** 1px stroke, same color, with `shadowBlur=4`
+- **Altitude cue:** Small dark ellipse "shadow" on the ground below (8px wide, 2px tall,
+  10% opacity) -- sells "this is airborne"
+- **Motion trail:** Longer than the Worm's -- 5-7 short line segments trailing behind,
+  fading quickly. Emphasizes speed.
+
+**Animation:**
+- Straight-line movement from spawn to nearest castle tile (no A*, ignores grid)
+- Rendered at **depth 25+** so it passes visibly *over* towers (depth 10)
+- Trail segments update each frame from a short history of head positions
+
+**Death animation:**
+- Short magenta burst -- 4-6 small `#FF3CF2` fragments scatter
+- Lifespan 150ms (shorter than ground enemies -- packets die often, keep effects cheap)
+- No lingering screen effects
+
+**Firewall air-blind indicator:**
+When a Firewall tower has a flying enemy in its range but cannot target it, the tower's
+range ring shifts to a **muted gray** (`#667788` at 20% opacity) instead of its normal
+cyan highlight. This teaches the player that Firewall is air-blind without a tutorial.
+(Mandated by `01-04` L201.)
+
 ### Enemy Visual Summary Table
 
-| Type  | Shape              | Radius | Color     | Outline | Trail/Effect         |
-|-------|--------------------|--------|-----------|---------|----------------------|
-| Worm  | Circle + segments  | 8px    | `#B7FF00` | 1px     | Following body parts |
-| Trojan| Hexagon            | 12px   | `#FF6B35` | 2px     | Glitch stutter       |
-| Boss  | Irregular polygon  | 18px   | `#FF2E63` | 3px     | Glow aura + glitch   |
+| Type   | Shape              | Radius | Color     | Outline | Trail/Effect         |
+|--------|--------------------|--------|-----------|---------|----------------------|
+| Worm   | Circle + segments  | 8px    | `#B7FF00` | 1px     | Following body parts |
+| Trojan | Hexagon            | 12px   | `#FF6B35` | 2px     | Glitch stutter       |
+| Packet | Chevron + shadow   | 8px    | `#FF3CF2` | 1px     | Long line trail      |
+| Boss   | Irregular polygon  | 18px   | `#FF2E63` | 3px     | Glow aura + glitch   |
 
 ---
 
@@ -299,6 +343,22 @@ for (let row = 0; row <= GRID_ROWS; row++) {
   }
 }
 ```
+
+**Path Line (mandated by `01-02`)**
+
+Each of the 3 portal rows gets its own path line from spawn cell to castle, connecting
+cell centers along the A* route.
+
+- **Color:** `0xFF0000` red, as specified in `01-02` §Line Appearance (high contrast
+  against `#141726` grid, unique among gameplay elements). This is a deliberate
+  exception to the palette (which would otherwise use `#FF2E63` Threat Red) — the pure
+  red is reserved exclusively for the path line so players can't confuse it with any
+  enemy or hit-state color.
+- **Alpha:** 0.25 - 0.35
+- **Width:** 2px
+- **Depth:** 3 (above grid/circuit at 1, below enemies at 20 and towers at 10)
+- **Optional enhancements:** dashed style, slow pulse tween, or animated bright dots
+  along the line — see `01-02` §Optional Enhancements
 
 **Layer 3 -- Ambient Data Flow (subtle, optional)**
 Periodically spawn a small bright dot that travels along a grid line (like a data packet):
@@ -402,7 +462,7 @@ Current: simple text labels on a dark bar.
 
 **Wave Counter:**
 ```
-WAVE 03/10
+WAVE 03/20
 ```
 - "WAVE" in `#667788` (muted), number in `#00E5FF` (bright cyan)
 - During wave phase, number pulses slightly
@@ -464,10 +524,56 @@ Current: dark bar with rectangle buttons.
 ### Start Wave Button
 
 - Background: `#0B0C10`, border 2px `#00FF6A`
-- Text: "DEPLOY" (better than "START WAVE" -- more thematic) in `#00FF6A`
+- Text: **"DEPLOY"** (supersedes "START WAVE" in `01-01` L69 — thematic rename, adopted
+  as canonical for the visual layer) in `#00FF6A`
 - Hover: fill shifts to `#0A1F0A`, border glows
 - Click: flash white, text changes to "DEPLOYING..." during wave
 - Disabled: gray out entire button, border `#2A2F4A`
+
+### Enemy HP Bar (floating above each enemy)
+
+Required by `01-01` L495 placeholder list. Each enemy carries a small bar above it.
+
+- **Size:** width = enemy-radius * 2.5, height = 3px, rounded ends (1px radius)
+- **Position:** 8px above enemy top (scales with enemy radius)
+- **Background:** `#141726` at 80% opacity, 1px `#2A2F4A` border
+- **Fill:**
+  - Full HP: `#00FF6A` (Matrix Green)
+  - 50-100%: interpolates to `#F7FF4A` (Acid Yellow) at 50%
+  - 0-50%: interpolates to `#FF2E63` (Threat Red) at 0%
+- **Visibility rule:** Hidden at full HP for Worms (too much UI clutter at 30+ enemies);
+  visible at full HP for Trojan, Packet, Boss. Always visible below 100%.
+- **Animation:** Fill tweens smoothly on damage (100ms Power2.Out). Brief white flash
+  on the bar itself on each hit (30ms).
+
+### Range Indicator (during tower placement)
+
+Required by `01-01` L184/L496.
+
+- **Shape:** Circle, centered on the hovered cell
+- **Radius:** `tower.range * cellSize` (matches the tower's real range)
+- **Stroke:** 1px dashed, tower's accent color (`#00E5FF` for Firewall, `#3A86FF` for
+  Killswitch), 80% opacity
+- **Fill:** tower's accent color at 8% opacity (subtle wash)
+- **Valid-cell state:** As described above
+- **Invalid-cell state:** Stroke and fill shift to `#FF2E63` (Threat Red); a small
+  "X" glyph appears at the cursor center
+- **Air-blind indicator:** If hovering a Firewall placement while a flying enemy is in
+  range, a smaller secondary ring is drawn in `#667788` at 20% opacity to preview the
+  "I can't hit that" state
+
+### Placement-Rejected Warning ("Path blocked!")
+
+Required by `01-01` L141 and `01-07` L81.
+
+- **Trigger:** Player attempts to place a tower that would fully block the enemy path
+- **Position:** Centered over the attempted cell, then floats up ~30px and fades
+- **Text:** `PATH BLOCKED` in `#FF2E63`, Orbitron/monospace bold 16px, letter-spaced 4px
+- **Background:** None (text-only), but with `shadowBlur=6 shadowColor=#FF2E63` halo
+- **Animation:** Appears instantly, holds 300ms, floats up 30px while fading over 600ms
+- **Feedback:** Cell border flashes `#FF2E63` once (150ms), and the existing placement
+  ghost briefly shakes (2px amplitude, 80ms) before the warning appears
+- **Audio hook:** Reserved for a short low "denied" tone when audio lands (out of scope)
 
 ### Tower Info Panel (selected tower)
 
@@ -482,6 +588,177 @@ Current: dark bar with rectangle buttons.
   ```
 - Upgrade button: border in `#F7FF4A`, text in yellow
 - Sell button: border in `#FF2E63`, text in red
+
+### Wave Preview Card (build phase, near Start Wave button)
+
+Shows the upcoming wave while the player is still building. Reads like a SOC alert ticket.
+
+- **Panel:** `#0B0C10` at 95% opacity, 1px `#2A2F4A` border, chamfered top-right corner
+- **Size:** ~220x90px, anchored above the Start Wave button
+- **Content (example — wave 7 from `01-05`):**
+  ```
+  NEXT: WAVE 07
+  PING SWEEP
+  -------------------------
+  12 x PACKET  (flying)
+  FIRST AIR CONTACT
+  ```
+- **Typography:**
+  - `NEXT: WAVE 07` in `#667788` (muted), wave number in `#00E5FF`
+  - Wave name (`PING SWEEP`) in `#C9D1D9`, Orbitron-weight-700 when loaded, else monospace bold
+  - Enemy roster in `#C9D1D9` with enemy-type name tinted to that enemy's color
+    (e.g., `PACKET` in `#FF3CF2`, `TROJAN` in `#FF6B35`)
+  - Flavor subtitle in `#667788` italic, one short line
+- **Transition:** When the current wave ends, the card fades out (200ms), new wave's
+  content fades in (300ms). Numbers inside ticker-animate briefly for theming.
+
+### Wave Banner (overlay at wave start)
+
+Shown briefly when a new wave spawns -- the "incident header" moment.
+
+- **Trigger:** Fires the instant the player clicks DEPLOY, lasts ~1.4s, then fades
+- **Position:** Center-top of the game area, centered horizontally, ~80px from top
+- **Layout:**
+  ```
+  ────────  WAVE 07  ────────
+       P I N G   S W E E P
+       "Airborne recon..."
+  ```
+- **Typography:**
+  - Top rule: thin `#2A2F4A` lines + wave number in `#00E5FF`, letter-spaced
+  - Wave name: Orbitron 28-32px (fallback monospace), letter-spacing 6px, color matches
+    wave-arc palette (arcs 1 = `#00E5FF`, 2 = `#00FF6A`, 3 = `#F7FF4A`, 4 = `#FF6B35`)
+  - Subtitle: Rajdhani italic 14px, `#667788`, from `01-05` wave-flavor script
+- **Animation:** Enter with a quick horizontal wipe (left->right, 200ms), hold 800ms,
+  fade out 400ms. No screen shake (reserved for boss spawns).
+
+### Milestone Callouts
+
+Per `01-05` §Milestone Callouts — fire once, on the waves listed, as oversized banners
+that replace the normal wave banner for that wave.
+
+| Wave | Callout              | Color       | Glow           |
+|------|----------------------|-------------|----------------|
+| 5    | **FIRST WALL HELD**  | `#00FF6A`   | cyan halo      |
+| 10   | **BOSS: ZERO-DAY**   | `#FF2E63`   | magenta glow   |
+| 15   | **STRATEGY CONFIRMED** | `#00E5FF` | cyan glow      |
+| 19   | **FINAL APPROACH**   | `#FF6B35`   | orange glow    |
+| 20   | **BOSS: ROOT ACCESS**| `#FF2E63`   | magenta + red  |
+
+- **Typography:** Orbitron 40-48px (fallback monospace bold), letter-spacing 10px
+- **Duration:** 2.0s (hold 1.4s), enter via wipe + subtle chromatic aberration (60ms)
+- **Pause:** Wave spawning is delayed by 600ms so the callout lands before the first enemy
+- Milestone banners are mutually exclusive with the normal Wave Banner — don't stack them
+
+### Non-Gameplay Scenes
+
+`01-01` §Screens defines six non-game scenes. All share a common visual chassis.
+
+#### Shared Scene Chassis
+
+- **Background:** `#0B0C10` fill + animated `#141726`->`#0B0C10` radial gradient from center
+- **Ambient layer:** ~30 tiny dots (1-3px) floating with slow alpha tween (0.05->0.2)
+  across full screen (already implemented in MainMenuScene, reuse everywhere)
+- **Frame:** Thin 1px `#2A2F4A` outer border with chamfered corners (8px), inset 24px
+- **Header band:** 60px tall, `#141726` fill with `#2A2F4A` bottom border, holds scene title
+- **Back button:** Bottom-left, `[ < BACK ]` in `#C9D1D9`, hover glow cyan
+- **Footer:** Version string + build hash in `#667788` at 10px, bottom-right
+
+#### Main Menu Scene
+
+- **Title:** `ROARER DEFENSE` centered top, Orbitron 64px, cyan-magenta gradient fill,
+  subtle bloom glow
+- **Subtitle:** `"Defend the server. Beat the breach."` in `#667788` Rajdhani italic 16px
+- **Menu buttons** (vertically stacked, centered, 280x52px each):
+  - `[ START RUN ]`, `[ ENDLESS MODE ]`, `[ SHOP ]`, `[ STATS ]`, `[ CREDITS ]`
+  - Base: `#0B0C10` fill, 1px `#2A2F4A` border
+  - Hover: border brightens to `#00E5FF`, fill lightens to `#141726`, text color stays
+  - Endless (locked): 40% opacity, lock icon (small `#F7FF4A` padlock) inline with label
+- **Background embellishment:** Large faint hexagonal circuit-trace pattern at 5% opacity
+
+#### Shop Scene
+
+- **Header:** `SHOP` title + live RP balance pill top-right: `[ coin icon ] 42 RP` in `#F7FF4A`
+- **Upgrade grid:** 2 columns x N rows, each cell is an upgrade card (360x120px):
+  ```
+  +---------------------------------------+
+  |  [icon]  STARTING GOLD+     Lv 2/5    |
+  |  +20 gold per level                   |
+  |  Current: +40g   |   Next: +60g       |
+  |  [=== cost: 10 RP ===]   [ BUY ]      |
+  +---------------------------------------+
+  ```
+- **Card states:**
+  - Affordable: 1px cyan border, `[BUY]` in `#00FF6A`
+  - Unaffordable: 1px `#2A2F4A` border, `[BUY]` dimmed, cost text in `#FF2E63`
+  - Maxed: full 2px `#F7FF4A` border, corner ribbon `MAX` in `#F7FF4A`
+- **Total-effect summary panel** (per `01-09` L181): right sidebar or bottom strip
+  showing cumulative modifiers ("+40g start · +10% dmg · +0.5 tile range ...")
+  in `#C9D1D9` monospace, each modifier on its own line
+
+#### Stats Screen
+
+- **Two-column layout:** Labels (`#667788`) left, values (`#00E5FF`) right, monospace
+  ```
+  TOTAL RUNS ............................... 24
+  WAVES CLEARED ............................ 187
+  ENEMIES KILLED ........................... 3,421
+  BEST WAVE (CAMPAIGN) ..................... 18
+  BEST WAVE (ENDLESS) ...................... 42
+  ```
+- Row divider: 1px `#2A2F4A` at 30% opacity
+- Numbers tick-in from 0 on scene enter (400ms Power2.Out) for theming
+
+#### Credits Screen
+
+- Centered single line: `Made with love by Nemetschek Bulgaria` in `#C9D1D9` Rajdhani 18px
+- Small subline: `Roarer Defense · {year}` in `#667788` 12px
+- Optional: animated circuit-trace running across full screen at 3% opacity
+
+#### Pause Overlay (during Wave Phase)
+
+- **Backdrop:** `#0B0C10` at 70% opacity (darkens but doesn't hide the game)
+- **Header:** `SYSTEM PAUSED` center, Orbitron 36px, `#00E5FF`, with shadowBlur glow
+- **Flavor:** `"Threat actors awaiting signal."` subtitle, `#667788` italic 14px (per `01-05` L82)
+- **Buttons** (vertically stacked, 200x44px):
+  - `[ RESUME ]` - cyan border, default action
+  - `[ QUIT RUN ]` - red `#FF2E63` border
+- **Animation:** Fade-in 200ms; a thin horizontal scan line sweeps down the overlay once
+
+#### Game Over / Defeat Screen
+
+- **Trigger:** lives reach 0 during wave phase; game freezes underneath
+- **Backdrop:** `#0B0C10` at 80% opacity, red `#FF2E63` vignette intensifies (handled in §6)
+- **Header:** `SYSTEM COMPROMISED` (per `01-05` L72), Orbitron 48px, `#FF2E63`, with
+  magenta shadowBlur glow; subtle chromatic aberration on text render
+- **Subtitle:** `"Breach successful. Run terminated."` in `#FF3CF2` italic Rajdhani 16px
+- **Stats block** (same pattern as Stats screen):
+  ```
+  WAVES SURVIVED ........................... 14
+  ENEMIES KILLED ........................... 212
+  ROARER POINTS EARNED ..................... 14 RP
+  ```
+- **Buttons:** `[ BACK TO MENU ]` single button, cyan border
+- **Animation:** Header wipes in right-to-left (400ms), stats fade in staggered (100ms each)
+
+#### Victory Screen
+
+- **Trigger:** Wave 20 boss dies
+- **Backdrop:** `#0B0C10` at 50% opacity, cyan color wash (per §6 Victory effect)
+- **Header:** `INCIDENT CONTAINED` (per `01-05` L78), Orbitron 48px, `#00FF6A`, green glow
+- **Subtitle:** `"Server secure. The breach is patched."` in `#00E5FF` Rajdhani italic 16px
+- **Stats block:**
+  ```
+  ENEMIES NEUTRALIZED ...................... 421
+  TOWERS DEPLOYED .......................... 18
+  BONUS ROARER POINTS ...................... +10 RP
+  TOTAL EARNED ............................. 30 RP
+  ```
+- If this is the first campaign clear: small banner `[ ENDLESS MODE UNLOCKED ]` in
+  `#F7FF4A` appears below stats with a 300ms scale-up tween
+- **Buttons:** `[ BACK TO MENU ]` cyan border
+- **Animation:** Bloom intensity briefly ramps (handled at camera level), header scales
+  in from 1.3 -> 1.0 with a small particle burst
 
 ---
 

@@ -28,18 +28,18 @@
 
 ```
 Main Menu
-  |--- Start Run -------> Game Screen (10 waves) -----> Run Complete / Game Over -> Main Menu
+  |--- Start Run -------> Game Screen (20 waves) -----> Run Complete / Game Over -> Main Menu
   |--- Endless Mode* ----> Game Screen (infinite) -----> Game Over -> Main Menu
   |--- Shop -------------> Shop Screen ----------------> Main Menu
   |--- Stats ------------> Stats Screen ---------------> Main Menu
   |--- Credits ----------> Credits Screen --------------> Main Menu
 
-* Endless Mode is visible but locked until the player beats all 10 waves.
+* Endless Mode is visible but locked until the player beats all 20 waves.
 ```
 
 ### Main Menu
-- **Start Run** button - begins a new 10-wave run
-- **Endless Mode** button - visible but locked (greyed out with lock icon). Unlocked permanently after first full 10-wave clear. Saved in localStorage
+- **Start Run** button - begins a new 20-wave run
+- **Endless Mode** button - visible but locked (greyed out with lock icon). Unlocked permanently after first full 20-wave clear. Saved in localStorage
 - **Shop** button - opens the upgrade shop
 - **Stats** button - opens the player stats screen
 - **Credits** button - shows credits
@@ -84,9 +84,9 @@ Main Menu
   - "Back to Menu" button
 
 ### Victory Screen
-- Triggered after surviving wave 10 (boss)
+- Triggered after surviving wave 20 (final boss, "ROOT ACCESS")
 - Shows:
-  - "VICTORY" header
+  - "VICTORY" header (see `02-01` §5 Non-Gameplay Scenes for thematic "INCIDENT CONTAINED" layout)
   - Bonus Roarer Points
   - Enemies killed, towers placed
   - "Back to Menu" button
@@ -196,7 +196,10 @@ Row 6: [ ]  [ ]  [ ]  [ ]  [ ]  [ ]  [ ]  [ ]  [ ]  [ ]  [ ]  [ ]  [ ]
 - Projectiles are visible and travel toward the target
 - Splash tower: projectile hits target location, explosion visual plays, AoE damage applied. If the target dies mid-flight, the projectile continues to the last known position and still deals AoE damage on impact
 - Sniper tower: fast projectile, tracks single target, damage applied on impact. If the target dies mid-flight, the **projectile vanishes** (shot is wasted — rewards precise targeting and good tower placement)
-- Placeholder visuals: small circles (yellow for splash, white for sniper)
+- Placeholder visuals: small circles (yellow for splash, white for sniper).
+  **Note:** `02-01` supersedes the yellow splash placeholder with a **cyan orb** to keep
+  the Firewall cyan-coded end-to-end; the yellow reference survives here for historical
+  context only.
 
 ---
 
@@ -207,41 +210,60 @@ All enemies are internet/digital themed - viruses, malware, spam bots, trojans, 
 
 ### Enemy Types
 
-#### Fast Enemy (Normal Waves: 1, 2, 4, 5, 7, 8)
+The full stat blocks, theme, and counter strategy for each enemy live in
+**`01-08-enemy-bestiary.md`** (single source of truth). Numbers below are the summary;
+`01-08` + `src/config/enemies.ts` win on conflict.
+
+#### Worm — Fast Ground (`type: fast`, `id: worm`)
 | Stat | Value |
 |------|-------|
-| HP | 15-40 (scales with wave) |
-| Speed | 3 tiles/sec |
-| Gold on Kill | 2 |
-| Lives Lost on Reach | 1 |
+| Base HP | 20 (scales per-wave via `waves.ts`) |
+| Speed | 3.0 tiles/sec |
+| Gold on Kill | 5 |
+| Lives Lost on Reach | 10 |
 
-- Small, fast, comes in large numbers
-- Placeholder visual: **Small green circle**
-- Themed as: Spam bots, minor viruses, data packets
+- Small, fast, comes in large numbers. The "vocabulary" enemy — ~80% of ground spawns
+- Themed as: Self-replicating worm malware (Conficker, ILOVEYOU)
 
-#### Elite Enemy (Elite Waves: 3, 6, 9)
+#### Trojan — Elite Ground (`type: elite`, `id: trojan`)
 | Stat | Value |
 |------|-------|
-| HP | 80-200 (scales with wave) |
+| Base HP | 100 (scales per-wave) |
 | Speed | 1.5 tiles/sec |
-| Gold on Kill | 8 |
+| Gold on Kill | 5 |
+| Lives Lost on Reach | 20 |
+
+- Fewer per wave, tanky, slower. Tests focus-fire / Killswitch investment
+- Themed as: Trojan horse — looks harmless until it cracks open
+
+#### Packet — Flying (`type: flying`, `id: packet`) *(proposed, per `01-04` / `01-08`)*
+| Stat | Value |
+|------|-------|
+| Base HP | 30 |
+| Speed | 2.0 tiles/sec |
+| Gold on Kill | 5 |
 | Lives Lost on Reach | 5 |
 
-- Fewer per wave, tanky, slower
-- Placeholder visual: **Medium orange circle**
-- Themed as: Trojans, ransomware, worms
+- Straight-line flight above the grid, ignores A*/towers, **only Killswitch can target**
+- Forces dual-tower builds so players can't win the campaign with pure Firewall splash
+- Themed as: A routed network packet traveling layer-3 — above application-layer defense
 
-#### Boss (Wave 10)
+#### Zeroday — Boss (`type: boss`, `id: zeroday`)
 | Stat | Value |
 |------|-------|
-| HP | 500 |
-| Speed | 1 tile/sec |
-| Gold on Kill | 50 |
-| Lives Lost on Reach | 999 (effectively instant game over) |
+| Base HP | 500 (multiplied 4-20x in campaign) |
+| Speed | 1.0 tiles/sec |
+| Gold on Kill | 5 |
+| Lives Lost on Reach | 999 (instant game over) |
 
-- Single enemy, massive HP pool, wave 10 is the boss alone with no escort enemies
-- Placeholder visual: **Large red circle** with pulsing effect
-- Themed as: Mega-virus, DDoS attack, Zero-day exploit
+- Single enemy, massive HP pool. Appears on waves **10 and 20** in campaign,
+  every 5 waves in endless starting wave 25
+- Wave 10 boss is alone with no escort; wave 20 ("ROOT ACCESS") is the final boss
+- Themed as: A zero-day exploit — unknown vulnerability, no patch
+
+**Gold reward note (per `01-08`):** All enemies reward a **flat 5g** — intentional, to
+prevent players from farming bosses for gold runaway. Difficulty is driven by wave-by-wave
+throughput, not per-kill value.
 
 ### Enemy Pathfinding
 - Uses A* (via easystarjs) on the grid
@@ -258,20 +280,30 @@ All enemies are internet/digital themed - viruses, malware, spam bots, trojans, 
 
 ## Wave System
 
-### 10 Waves (Campaign)
+### 20 Waves (Campaign)
 
-| Wave | Type | Enemy Count | Enemy Type | HP | Spawn Interval |
-|------|------|-------------|------------|-----|----------------|
-| 1 | Normal | 8 | Fast | 15 | 1.0s |
-| 2 | Normal | 12 | Fast | 20 | 0.9s |
-| 3 | **Elite** | 4 | Elite | 80 | 2.0s |
-| 4 | Normal | 15 | Fast | 25 | 0.8s |
-| 5 | Normal | 18 | Fast | 30 | 0.7s |
-| 6 | **Elite** | 5 | Elite | 120 | 1.8s |
-| 7 | Normal | 22 | Fast | 35 | 0.6s |
-| 8 | Normal | 25 | Fast | 40 | 0.5s |
-| 9 | **Elite** | 6 | Elite | 200 | 1.5s |
-| 10 | **Boss** | 1 | Boss | 500 | - |
+Campaign is hand-tuned across **20 waves** grouped into four 5-wave arcs (tutorial,
+upgrade pressure, strategy required, max investment). Boss waves land at **10 and 20**.
+
+The authoritative per-wave table (archetypes, counts, HP, spawn intervals, wave names
+and flavor) lives in:
+
+- **`01-04-campaign-mode-design.md`** — arc structure, archetype catalog, and the
+  concrete alternative wave table
+- **`01-05-wave-flavor-script.md`** — wave names (e.g. "PING SWEEP", "ROOT ACCESS") and
+  pre-wave flavor subtitles
+- **`src/config/waves.ts`** — the actual code source of truth
+
+This file is not duplicated here to prevent drift. If you need the numbers, read `01-04`.
+
+**Arc summary:**
+
+| Arc   | Waves | Theme                    | Wall at                          |
+|-------|-------|--------------------------|----------------------------------|
+| Arc 1 | 1-5   | Tutorial + first wall    | Wave 5 (first real swarm)        |
+| Arc 2 | 6-10  | Upgrade pressure         | Wave 10 (first boss: ZERO-DAY)   |
+| Arc 3 | 11-15 | Strategy required        | Wave 13 (hard elite push)        |
+| Arc 4 | 16-20 | Max investment           | Wave 20 (final boss: ROOT ACCESS) |
 
 ### Wave Flow
 1. **Build Phase**: Player places/sells/upgrades towers. "Start Wave" button is active. Wave preview shows upcoming enemies.
@@ -280,7 +312,7 @@ All enemies are internet/digital themed - viruses, malware, spam bots, trojans, 
 4. Wave ends when all enemies are either killed or have reached the castle.
 5. Lives are checked **after each enemy reaches the castle**. If lives reach 0 or below at any point: **game freezes immediately**, defeat overlay shown.
 6. Return to **Build Phase** for next wave.
-7. After wave 10 (boss), if player survives: **Victory screen** with bonus Roarer Points.
+7. After wave 20 (final boss), if player survives: **Victory screen** with bonus Roarer Points.
 
 ### Pause
 - Available during **Wave Phase** only (build phase is already a natural pause)
@@ -293,88 +325,26 @@ All enemies are internet/digital themed - viruses, malware, spam bots, trojans, 
 
 ### Endless Mode (Post-Game Unlock)
 
-Unlocked permanently after first full 10-wave campaign clear. Continues from the campaign's base difficulty with scaling formulas applied from wave 11 onward.
+Unlocked permanently after first full 20-wave campaign clear. Continues from the
+campaign's base difficulty with scaling formulas applied from wave 21 onward.
+See `01-03-endless-mode-design.md` for the authoritative formulas — the numbers below
+are reproduced for overview only and `01-03` / `src/config/endless.ts` win on conflict.
 
 #### Wave Pattern (Repeating 5-Wave Cycle)
-Starting at wave 11, the pattern repeats every 5 waves:
+Starting at wave 21, the pattern repeats every 5 waves:
 
-| Cycle Position | Type | Description |
-|---|---|---|
-| 0 (waves 11, 16, 21...) | Normal | Fast enemy swarm |
-| 1 (waves 12, 17, 22...) | Mixed | Fast enemies + a few Elites |
-| 2 (waves 13, 18, 23...) | Elite | Elite-heavy wave |
-| 3 (waves 14, 19, 24...) | Mixed | Fast + Elite, higher count |
-| 4 (waves 15, 20, 25...) | **Boss** | 1 Boss + Fast escort enemies |
+The concrete formulas, tables, and boss cadence live in **`01-03-endless-mode-design.md`**
+and **`src/config/endless.ts`**. Core shape:
 
-Bosses appear **every 5 waves** (15, 20, 25, 30...).
-
-#### HP Scaling
-Compound growth per wave, applied from wave 11 onward:
-
-```
-Fast HP(n)  = 45 * 1.12^(n - 10)      (base 45, ~2x every 6 waves)
-Elite HP(n) = 220 * 1.12^(n - 10)
-Boss HP(n)  = 600 * 1.12^(n - 10) * 2.5   (extra boss multiplier)
-```
-
-| Wave | Fast HP | Elite HP | Boss HP |
-|------|---------|----------|---------|
-| 15 | 79 | 388 | 2,642 |
-| 20 | 140 | 683 | 4,656 |
-| 30 | 435 | 2,124 | 14,476 |
-| 50 | 4,202 | 20,522 | — |
-
-#### Enemy Count Scaling
-Linear growth, capped at 50 to prevent browser performance issues:
-
-```
-Fast count(n)  = min(8 + floor((n - 10) * 1.5), 50)
-Elite count(n) = min(4 + floor((n - 10) * 0.3), 15)
-Boss escorts    = floor(Fast count / 3)
-Boss count      = always 1
-```
-
-#### Speed Scaling
-Slow logarithmic growth with hard caps:
-
-```
-speed(n) = min(baseSpeed * (1 + 0.08 * ln(n - 9)), capSpeed)
-
-Fast:  base 3.0, cap 5.0 tiles/sec
-Elite: base 1.5, cap 3.0 tiles/sec
-Boss:  base 1.0, cap 1.8 tiles/sec
-```
-
-#### Spawn Interval Scaling
-Decays toward a floor of 0.3 seconds:
-
-```
-interval(n) = max(0.3, 1.2 * 0.97^(n - 10))
-```
-
-| Wave | Interval |
-|------|----------|
-| 15 | 1.03s |
-| 20 | 0.89s |
-| 30 | 0.66s |
-| 50 | 0.36s |
-
-#### Gold Reward Scaling
-Grows slower than HP (6% vs 12%) to create gradual resource pressure:
-
-```
-gold(n) = baseGold * 1.06^(n - 10)
-
-Fast base:  2 gold
-Elite base: 8 gold
-Boss base:  50 gold
-```
-
-This means gold-per-effective-HP declines ~5% per wave, ensuring the player is slowly starved out regardless of upgrades. Typical wall: waves 35-45 for fully upgraded players.
+- 5-wave repeating cycle: Normal, Mixed, Elite, Mixed, Boss
+- Bosses appear **every 5 waves** (25, 30, 35, ...) in endless (campaign bosses are 10 and 20)
+- HP grows compound per wave; gold grows slower than HP so the player is slowly starved
+- Enemy counts grow linearly, capped at 50 for browser performance
+- Speeds grow logarithmically with hard caps
 
 #### Roarer Points in Endless
-- RP earned = total waves cleared (including the first 10 campaign waves)
-- e.g., dying on wave 23 = 22 RP
+- RP earned = total waves cleared (including the 20 campaign waves)
+- e.g., dying on wave 33 = 32 RP
 
 ---
 
@@ -390,7 +360,7 @@ This means gold-per-effective-HP declines ~5% per wave, ensuring the player is s
 
 ### Meta Currency: Roarer Points (RP)
 - Earned at the **end of each run** based on waves cleared
-- **Formula: RP earned = number of waves cleared** (e.g., cleared 6 waves = 6 RP, cleared all 10 = 10 RP)
+- **Formula: RP earned = number of waves cleared** (e.g., cleared 6 waves = 6 RP, cleared all 20 = 20 RP)
 - Spent in the **Shop** on permanent upgrades
 - Persisted in localStorage
 
@@ -415,7 +385,7 @@ All upgrades have multiple levels. Costs increase per level.
 | **Splash Radius+** | Splash tower AoE is larger | 3 | +0.3 tile splash radius per level | 6, 12, 20 |
 | **Sniper Crit** | Sniper has chance to crit (2x dmg) | 3 | +10% crit chance per level | 7, 14, 22 |
 
-> **Balance note**: With RP = waves cleared (max 10 per run), early upgrades are affordable in 1-2 runs, while maxing everything requires many successful runs. Total RP to max all upgrades: ~509 RP (~51 full clears).
+> **Balance note**: With RP = waves cleared (max 20 per run), early upgrades are affordable in 1-2 runs, while maxing everything requires many successful runs. Total RP to max all upgrades: ~509 RP (~26 full clears).
 
 ---
 
@@ -460,12 +430,12 @@ All upgrades have multiple levels. Costs increase per level.
    -> Player can place more towers, upgrade, sell
    -> Wave preview updates to show next wave info
    -> If lives > 0 and waves remain: repeat from step 3
-   -> If all 10 waves cleared: VICTORY
+   -> If all 20 waves cleared: VICTORY
 
 5. RUN END
    -> Show summary: waves survived, enemies killed, towers placed
    -> Award Roarer Points based on performance
-   -> If first time beating wave 10: unlock Endless Mode
+   -> If first time beating wave 20: unlock Endless Mode
    -> Return to Main Menu
 
 6. SHOP (from Main Menu)
@@ -568,7 +538,7 @@ Gamecheck/
       GameScene.ts             # Main gameplay scene
       CreditsScene.ts          # Credits screen
       GameOverScene.ts         # Defeat overlay / run end summary
-      VictoryScene.ts          # Victory screen after wave 10
+      VictoryScene.ts          # Victory screen after wave 20
     entities/
       Tower.ts                 # Base tower class
       SplashTower.ts           # Splash tower

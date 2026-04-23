@@ -1,10 +1,4 @@
-import {
-  GRID_COLS,
-  GRID_ROWS,
-  CELL_SIZE,
-  GRID_OFFSET_X,
-  GRID_OFFSET_Y,
-} from '../config/constants';
+import { GRID_COLS, GRID_ROWS, CELL_SIZE, GRID_OFFSET_X, GRID_OFFSET_Y } from '../config/constants';
 
 export type CellType = 'portal' | 'castle' | 'buildable' | 'out-of-bounds';
 
@@ -18,10 +12,16 @@ export interface PixelCoord {
   y: number;
 }
 
+export function cellKey(col: number, row: number): string {
+  return `${col},${row}`;
+}
+
 export class GridManager {
   readonly cols = GRID_COLS;
   readonly rows = GRID_ROWS;
   readonly cellSize = CELL_SIZE;
+
+  private occupied: Set<string> = new Set();
 
   cellToPixel(col: number, row: number): PixelCoord {
     return {
@@ -63,5 +63,23 @@ export class GridManager {
 
   isBuildable(col: number, row: number): boolean {
     return this.getCellType(col, row) === 'buildable';
+  }
+
+  isOccupied(col: number, row: number): boolean {
+    return this.occupied.has(cellKey(col, row));
+  }
+
+  canPlaceTower(col: number, row: number): boolean {
+    return this.isBuildable(col, row) && !this.isOccupied(col, row);
+  }
+
+  setOccupied(col: number, row: number, occupied: boolean): void {
+    const key = cellKey(col, row);
+    if (occupied) this.occupied.add(key);
+    else this.occupied.delete(key);
+  }
+
+  getOccupiedCells(): ReadonlySet<string> {
+    return this.occupied;
   }
 }

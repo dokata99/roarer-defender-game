@@ -103,7 +103,8 @@ A trojan horse — looks harmless until it cracks open. Slow because it's carryi
 - No actual damage reduction or shield mechanic — the "armor" is pure HP.
 
 ### Visual direction
-- Bulkier than worms, roughly square silhouette with rotating ring around it.
+- Bulkier than worms, **roughly hexagonal silhouette** (6-sided "package" shape, per
+  `02-01` §3) with a rotating outer-hexagon ring at 20% opacity around it.
 - Hot orange says "warning, slow, dangerous" without being red (which is reserved for Zeroday).
 - Glitch stutter should be subtle — on hit, the stutter is ambient motion, the hit flash is the real feedback.
 

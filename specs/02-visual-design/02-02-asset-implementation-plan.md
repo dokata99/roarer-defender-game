@@ -321,6 +321,56 @@ Frame 5: glow radius 20, opacity 0.15
 
 Drawn as a radial gradient from `#FF3CF2` -> transparent at each frame's radius.
 
+### Packet (Flying Enemy) — proposed per `01-08` §04
+
+**Texture keys:**
+- `enemy-packet` (single frame, 24x24 — chevron body)
+- `enemy-packet-shadow` (single frame, 16x6 — ground shadow ellipse, drawn separately
+  below the flight altitude)
+
+**Size:** 24x24 (body), 16x6 (shadow)
+
+**Body drawing (chevron):**
+```
+1. Chevron/arrow path via Path2D:
+   Vertices (centered on 24x24):
+     tip      (20, 12)   forward point
+     top-fin  (4, 4)     trailing top
+     mid-cut  (10, 12)   notch
+     bot-fin  (4, 20)    trailing bottom
+   Close path.
+2. Fill: radial gradient #FF3CF2 center -> #66004D edge
+3. Stroke: 1px #FF3CF2, shadowBlur=4 shadowColor=#FF3CF2
+4. Inner bright line: 1px white line along the chevron axis, tip-to-notch
+```
+
+**Shadow drawing:**
+```
+1. Ellipse fill, #000000 at 35% opacity, soft edge via radial gradient
+2. 16px wide, 6px tall, flattened
+```
+
+**Integration in Enemy.ts (Packet branch):**
+```typescript
+const body = scene.add.image(0, 0, 'enemy-packet');
+body.setDepth(25);  // above towers (depth 10)
+
+// Shadow lives in the scene, not the container; tracks head position
+this.shadow = scene.add.image(this.x, this.y + 14, 'enemy-packet-shadow');
+this.shadow.setAlpha(0.35).setDepth(2);  // below grid lines? no — below enemies
+
+// Trail (5-7 short line segments) drawn in update() as a Graphics polyline
+// using the last N head positions. Lives in the scene, depth 24.
+
+// Override destroy() to clean up shadow + trail
+```
+
+**Motion:** straight line from spawn cell to nearest castle tile — ignore A*. Update
+position with simple vector lerp per frame.
+
+**Rotation:** body rotation matches movement vector so the chevron tip always points
+forward. `body.setRotation(angle)`.
+
 ---
 
 ## Phase 4: Projectile & Impact Textures
@@ -329,10 +379,12 @@ Drawn as a radial gradient from `#FF3CF2` -> transparent at each frame's radius.
 
 **Key:** `proj-firewall` (16x16)
 
+Cyan-coded end to end — no yellow (supersedes `01-01` L493 placeholder).
+
 ```
-1. Outer glow: radial gradient, #FFFF00 at 0.4 -> transparent, radius 8
-2. Core: filled circle radius 3, white
-3. Mid ring: filled circle radius 5, #00E5FF at 0.6
+1. Outer glow: radial gradient, #00E5FF at 0.4 -> transparent, radius 8
+2. Mid ring: filled circle radius 5, #00E5FF at 0.6
+3. Core: filled circle radius 3, white
 ```
 
 ### Killswitch Projectile (Sniper)
@@ -739,8 +791,9 @@ as enemy type keys. The visual overhaul renames these to thematic names. This mu
 - Add `id: string` field to `EnemyConfig` interface
 - `fast` entry: add `id: 'worm'`
 - `elite` entry: add `id: 'trojan'`
+- `flying` entry (new): add `id: 'packet'` — `type: 'flying'`, see `01-08` §04 for stats
 - `boss` entry: add `id: 'zeroday'`
-- Texture keys use `config.id` (e.g. `enemy-worm`), NOT `enemyType`
+- Texture keys use `config.id` (e.g. `enemy-worm`, `enemy-packet`), NOT `enemyType`
 
 This keeps all existing gameplay code working (it uses `type`/`enemyType`) while giving
 the visual layer clean thematic names.
@@ -917,11 +970,13 @@ drawCircuitOverlay(this.gridGraphics, this.gridManager);
 ### Step 5: Enemy Textures + Integration
 1. Create `EnemyTextures.ts` -- Worm head + segments
 2. Create `EnemyTextures.ts` -- Trojan body + shield
-3. Create `EnemyTextures.ts` -- Zero-Day body spritesheet + core
-4. Register animations via `registerAnim()` for Zero-Day pulse
-5. Refactor `Enemy.ts` to use sprites, add trail/shield/pulse logic
-6. Add segment cleanup in Worm `destroy()` override
-7. Test: enemies render with distinct shapes and animations
+3. Create `EnemyTextures.ts` -- Packet chevron + shadow (flying)
+4. Create `EnemyTextures.ts` -- Zero-Day body spritesheet + core
+5. Register animations via `registerAnim()` for Zero-Day pulse
+6. Refactor `Enemy.ts` to use sprites, add trail/shield/pulse logic
+7. Add segment cleanup in Worm `destroy()` override; shadow+trail cleanup for Packet
+8. Wire Packet straight-line motion + depth-25 rendering + Firewall skip-flying rule
+9. Test: enemies render with distinct shapes and animations, Firewall ignores Packet
 
 ### Step 6: Projectile + Impact Textures
 1. Create `ProjectileTextures.ts` -- both projectile types

@@ -1,13 +1,11 @@
 import EasyStar from 'easystarjs';
 import type { CellCoord } from './GridManager';
-import { GridManager } from './GridManager';
+import { GridManager, cellKey } from './GridManager';
 
 const WALKABLE = 0;
 const BLOCKED = 1;
 
-export function cellKey(col: number, row: number): string {
-  return `${col},${row}`;
-}
+export { cellKey };
 
 type EasyStarInstance = InstanceType<typeof EasyStar.js>;
 
@@ -25,9 +23,7 @@ export class PathfindingManager {
     this.easystar.disableCornerCutting();
   }
 
-  async recalculatePaths(
-    blockedCells: ReadonlySet<string>,
-  ): Promise<Map<string, CellCoord[]>> {
+  async recalculatePaths(blockedCells: ReadonlySet<string>): Promise<Map<string, CellCoord[]>> {
     this.easystar.setGrid(this.buildGrid(blockedCells));
 
     const results = new Map<string, CellCoord[]>();
@@ -42,6 +38,16 @@ export class PathfindingManager {
     return results;
   }
 
+  /** True if, given the blocked set, every portal still has a path to some castle. */
+  async allPortalsReachable(blockedCells: ReadonlySet<string>): Promise<boolean> {
+    this.easystar.setGrid(this.buildGrid(blockedCells));
+    for (const portal of this.portals) {
+      const path = await this.findShortestPathToAnyCastle(portal);
+      if (!path) return false;
+    }
+    return true;
+  }
+
   private buildGrid(blockedCells: ReadonlySet<string>): number[][] {
     const matrix: number[][] = [];
     for (let row = 0; row < this.grid.rows; row++) {
@@ -54,9 +60,7 @@ export class PathfindingManager {
     return matrix;
   }
 
-  private async findShortestPathToAnyCastle(
-    portal: CellCoord,
-  ): Promise<CellCoord[] | null> {
+  private async findShortestPathToAnyCastle(portal: CellCoord): Promise<CellCoord[] | null> {
     let best: CellCoord[] | null = null;
     for (const castle of this.castles) {
       const path = await this.findPathOnce(portal, castle);
