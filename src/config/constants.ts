@@ -53,7 +53,3 @@ export const CASTLE_CELLS: readonly CellCoord[] = [
   { col: GRID_COLS - 1, row: 4 },
 ];
 
-export const PATH_LINE_COLOR = 0xff0000;
-export const PATH_LINE_ALPHA = 0.3;
-export const PATH_LINE_WIDTH = 2;
-export const PATH_LINE_DEPTH = 3;
