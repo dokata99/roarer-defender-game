@@ -43,7 +43,7 @@ const CAMPAIGN_FLAVOR: Record<number, WaveFlavor> = {
 
 const MILESTONES: Record<number, MilestoneText> = {
   5: { headline: 'FIRST WALL HELD', subtitle: "You're not a script kiddie anymore." },
-  10: { headline: 'ZERO DAY PATCHED', subtitle: 'The server lives.' },
+  10: { headline: 'ZERO DAY PATCHED', subtitle: 'The server holds.' },
   15: { headline: 'LATERAL MOVEMENT CONTAINED', subtitle: "They're running out of vectors." },
   19: { headline: 'FINAL PAYLOAD INCOMING', subtitle: 'Prepare for root access attempt.' },
   20: { headline: 'INCIDENT CONTAINED', subtitle: 'Endless mode unlocked.' },

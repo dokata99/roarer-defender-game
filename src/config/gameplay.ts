@@ -1,5 +1,5 @@
 export const STARTING_GOLD = 100;
-export const STARTING_LIVES = 100;
+export const STARTING_SECURITY = 100;
 
 export const TOWER_DEPTH = 10;
 export const ENEMY_DEPTH = 20;

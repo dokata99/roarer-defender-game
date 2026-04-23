@@ -70,7 +70,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
   private waveManager = new WaveManager();
   private pathRenderer!: PathRenderer;
   private particles!: ParticleManager;
-  /** Persistent postFX vignette that fades in when lives drop below 30%. */
+  /** Persistent postFX vignette that fades in when security drops below 30%. */
   private dangerVignette: Phaser.FX.Vignette | null = null;
   private placementHighlight!: Phaser.GameObjects.Rectangle;
   private rangeIndicator!: Phaser.GameObjects.Arc;
@@ -80,7 +80,8 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
 
   private phase: Phase = 'build';
   private gold = 0;
-  private lives = 0;
+  private security = 0;
+  private leakedThisWave = false;
   private waveIndex = 0; // 0 = not started, first wave = 1
   private placementType: TowerType | null = null;
   private selectedTower: Tower | null = null;
@@ -145,7 +146,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.pathRenderer.render(this.cachedPaths, this.getCurrentPathTier());
 
     this.hud = new HUD(this);
-    this.hud.setLives(this.lives);
+    this.hud.setSecurity(this.security);
     this.hud.setGold(this.gold);
     this.updateWaveLabel();
     this.hud.setPhase(
@@ -191,15 +192,15 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     if (this.game.renderer.type !== Phaser.WEBGL) return;
     // Light bloom — just enough to kiss the neon accents. Anything heavier fuzzes the text.
     cam.postFX.addBloom(0xffffff, 1, 1, 1, 0.35, 4);
-    // Low-HP danger vignette only. Parked at strength 0; tweens in when lives < 30%.
+    // Low-security danger vignette only. Parked at strength 0; tweens in when security < 30%.
     // No baseline vignette — the one in earlier builds crushed the corners too hard.
     this.dangerVignette = cam.postFX.addVignette(0.5, 0.5, 0.85, 0);
   }
 
-  /** Toggle the danger vignette when lives cross the 30% threshold. */
+  /** Toggle the danger vignette when security crosses the 30% threshold. */
   private updateDangerVignette(): void {
     if (!this.dangerVignette) return;
-    const ratio = this.lives / this.context.startingLives;
+    const ratio = this.security / this.context.startingSecurity;
     // Gentler peak strength — 0.55 looked like black corners, 0.35 reads as "uh oh".
     const target = ratio < 0.3 ? 0.35 : 0;
     if (Math.abs(this.dangerVignette.strength - target) < 0.01) return;
@@ -216,7 +217,8 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.context = new RunContext(save.shopUpgrades);
     this.phase = 'build';
     this.gold = this.context.startingGold;
-    this.lives = this.context.startingLives;
+    this.security = this.context.startingSecurity;
+    this.leakedThisWave = false;
     this.waveIndex = 0;
     this.placementType = null;
     this.selectedTower = null;
@@ -405,6 +407,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.deselectTowerInternal();
     this.waveIndex = nextWave;
     this.phase = 'wave';
+    this.leakedThisWave = false;
 
     // Snapshot paths at wave start — enemies follow these for the duration of the wave
     await this.recalculatePaths();
@@ -525,12 +528,13 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
       if (!enemy.alive) continue;
       const result = enemy.update(deltaSec);
       if (result === 'reached-castle') {
-        this.lives -= enemy.livesLostOnReach;
-        this.hud.setLives(this.lives);
+        this.security -= enemy.securityLostOnReach;
+        this.leakedThisWave = true;
+        this.hud.setSecurity(this.security);
         this.updateDangerVignette();
         enemy.alive = false;
         enemy.destroy();
-        if (this.lives <= 0) {
+        if (this.security <= 0) {
           this.endRun('defeat');
           return;
         }
@@ -726,6 +730,13 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     if (this.mode === 'campaign' && this.waveIndex >= TOTAL_CAMPAIGN_WAVES) {
       this.endRun('victory');
       return;
+    }
+    // Perfect wave regen: +5% security if no enemies leaked this wave
+    if (!this.leakedThisWave && this.security < 100) {
+      this.security = Math.min(100, this.security + 5);
+      this.hud.setSecurity(this.security);
+      this.updateDangerVignette();
+      this.flashMessage('PERFECT WAVE — +5% Security');
     }
     this.showWaveCompleteMessage();
     if (this.mode === 'campaign') {

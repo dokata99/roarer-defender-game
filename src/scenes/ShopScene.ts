@@ -199,7 +199,7 @@ export class ShopScene extends Phaser.Scene {
     return [
       `Towers:  ×${dmg} damage   ·   ×${rate} attack rate   ·   +${range} range   ·   +${splash} splash   ·   ${crit}% sniper crit`,
       `Economy:  ${ctx.startingGold}g start   ·   ×${place} placement cost   ·   ×${upgr} upgrade cost   ·   ×${bounty} kill bounty`,
-      `Survival:  ${ctx.startingLives} lives`,
+      `Security:  ${ctx.startingSecurity}%`,
     ].join('\n');
   }
 

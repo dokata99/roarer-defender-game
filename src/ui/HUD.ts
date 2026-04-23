@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { CANVAS_WIDTH, HUD_HEIGHT, COLORS } from '../config/constants';
 
 export class HUD {
-  private livesText: Phaser.GameObjects.Text;
+  private securityText: Phaser.GameObjects.Text;
   private goldText: Phaser.GameObjects.Text;
   private waveText: Phaser.GameObjects.Text;
   private phaseText: Phaser.GameObjects.Text;
@@ -14,8 +14,8 @@ export class HUD {
     bg.lineStyle(1, COLORS.gridBorder, 1);
     bg.strokeRect(0, 0, CANVAS_WIDTH, HUD_HEIGHT);
 
-    this.livesText = scene.add
-      .text(160, HUD_HEIGHT / 2, 'Lives: 100', {
+    this.securityText = scene.add
+      .text(160, HUD_HEIGHT / 2, 'Security: 100%', {
         fontSize: '20px',
         color: COLORS.textPrimary,
         fontFamily: 'sans-serif',
@@ -48,8 +48,8 @@ export class HUD {
       .setOrigin(0.5, 0);
   }
 
-  setLives(lives: number): void {
-    this.livesText.setText(`Lives: ${Math.max(0, lives)}`);
+  setSecurity(security: number): void {
+    this.securityText.setText(`Security: ${Math.max(0, security)}%`);
   }
 
   setGold(gold: number): void {

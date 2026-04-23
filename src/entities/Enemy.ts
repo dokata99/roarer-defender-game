@@ -75,7 +75,7 @@ export class Enemy {
   readonly maxHp: number;
   hp: number;
   readonly goldOnKill: number;
-  readonly livesLostOnReach: number;
+  readonly securityLostOnReach: number;
   readonly speedPxPerSec: number;
   readonly isFlying: boolean;
   readonly slowResistance: number;
@@ -140,7 +140,7 @@ export class Enemy {
     this.maxHp = spec.hp;
     this.hp = spec.hp;
     this.goldOnKill = spec.goldOnKill;
-    this.livesLostOnReach = cfg.livesLostOnReach;
+    this.securityLostOnReach = cfg.securityLostOnReach;
     this.speedPxPerSec = spec.speedTilesPerSec * CELL_SIZE;
     this.isFlying = cfg.flying === true;
     this.slowResistance = spec.slowResistance ?? cfg.slowResistance;

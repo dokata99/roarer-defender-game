@@ -5,7 +5,6 @@ export interface ShopUpgrades {
   towerRange: number; // 0-3
   discountTowers: number; // 0-3
   discountUpgrades: number; // 0-3
-  extraLives: number; // 0-5
   killBounty: number; // 0-5
   splashRadius: number; // 0-3
   sniperCrit: number; // 0-3
@@ -39,7 +38,6 @@ export function defaultSave(): SaveData {
       towerRange: 0,
       discountTowers: 0,
       discountUpgrades: 0,
-      extraLives: 0,
       killBounty: 0,
       splashRadius: 0,
       sniperCrit: 0,

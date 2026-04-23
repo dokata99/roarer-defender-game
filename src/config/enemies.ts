@@ -4,7 +4,7 @@ export interface EnemyTypeConfig {
   displayName: string;
   speedTilesPerSec: number;
   goldOnKill: number;
-  livesLostOnReach: number;
+  securityLostOnReach: number;
   color: number;
   radius: number;
   pulses: boolean;
@@ -23,7 +23,7 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyTypeConfig> = {
     displayName: 'Worm',
     speedTilesPerSec: 3,
     goldOnKill: 2,
-    livesLostOnReach: 1,
+    securityLostOnReach: 5,
     color: 0xb7ff00,
     radius: 10,
     pulses: false,
@@ -33,7 +33,7 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyTypeConfig> = {
     displayName: 'Trojan',
     speedTilesPerSec: 1.5,
     goldOnKill: 8,
-    livesLostOnReach: 5,
+    securityLostOnReach: 15,
     color: 0xff6b35,
     radius: 16,
     pulses: false,
@@ -43,7 +43,7 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyTypeConfig> = {
     displayName: 'Zero-Day',
     speedTilesPerSec: 1,
     goldOnKill: 50,
-    livesLostOnReach: 999,
+    securityLostOnReach: 90,
     color: 0xff2e63,
     radius: 26,
     pulses: true,
@@ -53,7 +53,7 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyTypeConfig> = {
     displayName: 'Packet',
     speedTilesPerSec: 2,
     goldOnKill: 5,
-    livesLostOnReach: 5,
+    securityLostOnReach: 10,
     color: 0xff3cf2,
     radius: 11,
     pulses: false,

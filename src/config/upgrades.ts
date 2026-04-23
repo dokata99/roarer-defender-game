@@ -61,14 +61,6 @@ export const UPGRADE_CONFIGS: UpgradeConfig[] = [
     perLevelEffect: '-10% upgrade cost',
   },
   {
-    id: 'extraLives',
-    name: 'Extra Lives',
-    description: 'Begin each run with more lives.',
-    maxLevel: 5,
-    costs: [2, 5, 9, 14, 20],
-    perLevelEffect: '+20 lives',
-  },
-  {
     id: 'killBounty',
     name: 'Kill Bounty+',
     description: 'Enemies drop more gold.',

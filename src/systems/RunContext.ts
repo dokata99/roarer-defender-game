@@ -1,4 +1,4 @@
-import { STARTING_GOLD, STARTING_LIVES } from '../config/gameplay';
+import { STARTING_GOLD, STARTING_SECURITY } from '../config/gameplay';
 import { TOWER_CONFIGS, type TowerType, type TowerLevelStats } from '../config/towers';
 import type { ShopUpgrades } from '../types/save';
 
@@ -9,7 +9,7 @@ import type { ShopUpgrades } from '../types/save';
  */
 export class RunContext {
   readonly startingGold: number;
-  readonly startingLives: number;
+  readonly startingSecurity: number;
   readonly sniperCritChance: number;
   readonly placeCostMultiplier: number;
   readonly upgradeCostMultiplier: number;
@@ -21,7 +21,7 @@ export class RunContext {
 
   constructor(upgrades: ShopUpgrades) {
     this.startingGold = STARTING_GOLD + 20 * upgrades.startingGold;
-    this.startingLives = STARTING_LIVES + 20 * upgrades.extraLives;
+    this.startingSecurity = STARTING_SECURITY;
     this.sniperCritChance = 0.1 * upgrades.sniperCrit;
 
     this.placeCostMultiplier = Math.max(0, 1 - 0.1 * upgrades.discountTowers);
