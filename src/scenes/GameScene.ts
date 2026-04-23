@@ -138,6 +138,15 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     // isn't PoT, so we let the browser's canvas resampler do the downsample once.
     this.prescaleArtTexture(TOWER_ART_KEYS.splashBody, 128);
     this.prescaleArtTexture(TOWER_ART_KEYS.sniperBody, 128);
+    // Enemy sprites have the same non-PoT downscale blur. Boss gets a larger
+    // budget because its radius (26) and pulse tween push display size to ~89 px.
+    this.prescaleArtTexture(ENEMY_ART_KEYS.fast, 128);
+    this.prescaleArtTexture(ENEMY_ART_KEYS.elite, 128);
+    this.prescaleArtTexture(ENEMY_ART_KEYS.flying, 128);
+    this.prescaleArtTexture(ENEMY_ART_KEYS.boss, 256);
+    // Portal (1184×1803) and server (1043×2048) render at ~100×158 px in the side gutter.
+    this.prescaleArtTexture('env-portal', 256);
+    this.prescaleArtTexture('env-base', 256);
 
     this.grid = new GridManager();
     this.pathfinder = new PathfindingManager(this.grid, PORTAL_CELLS, CASTLE_CELLS);
