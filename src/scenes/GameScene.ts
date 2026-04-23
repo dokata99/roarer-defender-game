@@ -121,6 +121,8 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.load.image(TOWER_ART_KEYS.splashProjectile, 'assets/projectiles/Splash_Bear_Projectile.png');
     this.load.image(TOWER_ART_KEYS.sniperBody, 'assets/towers/Lazer_Bear_BB.png');
     this.load.image(TOWER_ART_KEYS.sniperProjectile, 'assets/projectiles/Lazer_Bear_Projectile.png');
+    this.load.image(TOWER_ART_KEYS.frostBody, 'assets/towers/Frozen_Bear.png');
+    this.load.image(TOWER_ART_KEYS.frostProjectile, 'assets/projectiles/Ice_Shard_Projectile.png');
     this.load.image(ENEMY_ART_KEYS.fast, 'assets/enemies/Bug.png');
     this.load.image(ENEMY_ART_KEYS.elite, 'assets/enemies/Ogre.png');
     this.load.image(ENEMY_ART_KEYS.flying, 'assets/enemies/Dragon.png');
@@ -138,6 +140,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     // isn't PoT, so we let the browser's canvas resampler do the downsample once.
     this.prescaleArtTexture(TOWER_ART_KEYS.splashBody, 128);
     this.prescaleArtTexture(TOWER_ART_KEYS.sniperBody, 128);
+    this.prescaleArtTexture(TOWER_ART_KEYS.frostBody, 128);
     // Enemy sprites have the same non-PoT downscale blur. Boss gets a larger
     // budget because its radius (26) and pulse tween push display size to ~89 px.
     this.prescaleArtTexture(ENEMY_ART_KEYS.fast, 128);

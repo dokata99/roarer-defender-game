@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
-import { CANVAS_WIDTH, COLORS, SCENE_KEYS } from '../config/constants';
+import { CANVAS_HEIGHT, CANVAS_WIDTH, COLORS, SCENE_KEYS } from '../config/constants';
 import { loadSave } from '../systems/SaveManager';
+
+const MENU_BG_KEY = 'menu-bg';
 
 type MenuButton = {
   label: string;
@@ -14,33 +16,32 @@ export class MainMenuScene extends Phaser.Scene {
     super(SCENE_KEYS.MAIN_MENU);
   }
 
+  preload() {
+    this.load.image(MENU_BG_KEY, 'assets/environment/Gemini_Generated_Image_gz5s10gz5s10gz5s-2.png');
+  }
+
   create() {
     this.cameras.main.setBackgroundColor(COLORS.background);
+
+    if (this.textures.exists(MENU_BG_KEY)) {
+      const bg = this.add.image(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, MENU_BG_KEY);
+      const scale = Math.max(CANVAS_WIDTH / bg.width, CANVAS_HEIGHT / bg.height);
+      bg.setScale(scale);
+      bg.setDepth(-1000);
+
+      this.add
+        .rectangle(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, CANVAS_WIDTH, CANVAS_HEIGHT, 0x000000, 0.8)
+        .setDepth(-999);
+    }
+
     const save = loadSave();
 
     this.add
-      .text(CANVAS_WIDTH / 2, 90, 'Roarers Defence', {
+      .text(CANVAS_WIDTH / 2, 160, 'Roarers Defence', {
         fontSize: '72px',
         color: COLORS.textPrimary,
         fontFamily: 'sans-serif',
         fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
-
-    this.add
-      .text(CANVAS_WIDTH / 2, 160, 'Defend the server from internet threats', {
-        fontSize: '18px',
-        color: COLORS.textMuted,
-        fontFamily: 'sans-serif',
-      })
-      .setOrigin(0.5);
-
-    // Roarer Points balance
-    this.add
-      .text(CANVAS_WIDTH / 2, 210, `Roarer Points: ${save.roarerPoints}`, {
-        fontSize: '22px',
-        color: COLORS.textGold,
-        fontFamily: 'sans-serif',
       })
       .setOrigin(0.5);
 

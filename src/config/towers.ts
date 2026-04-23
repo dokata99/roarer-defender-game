@@ -5,6 +5,8 @@ export const TOWER_ART_KEYS = {
   splashProjectile: 'proj-splash-bear',
   sniperBody: 'tower-sniper-bear',
   sniperProjectile: 'proj-sniper-bear',
+  frostBody: 'tower-frost-bear',
+  frostProjectile: 'proj-frost-bear',
 } as const;
 
 export interface TowerLevelStats {
@@ -58,6 +60,7 @@ export const TOWER_CONFIGS: Record<TowerType, TowerTypeConfig> = {
     art: {
       bodyKey: TOWER_ART_KEYS.sniperBody,
       projectileKey: TOWER_ART_KEYS.sniperProjectile,
+      bodyScaleMultiplier: 1.2,
     },
     levels: [
       { cost: 15, damage: 20, attackIntervalMs: 2000, rangeTiles: 4.0 },
@@ -69,6 +72,11 @@ export const TOWER_CONFIGS: Record<TowerType, TowerTypeConfig> = {
     displayName: 'Cryolock',
     color: 0x7ef4ff,
     projectileColor: 0x7ef4ff,
+    art: {
+      bodyKey: TOWER_ART_KEYS.frostBody,
+      projectileKey: TOWER_ART_KEYS.frostProjectile,
+      bodyScaleMultiplier: 1.2,
+    },
     levels: [
       {
         cost: 12,
