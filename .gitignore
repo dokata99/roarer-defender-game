@@ -5,3 +5,10 @@ dist/
 .env.*
 *.log
 .DS_Store
+.superpowers/brainstorm/44502-1776958238/content/01-theme-direction.html
+.superpowers/brainstorm/44502-1776958238/content/02-enemy-role-mapping.html
+.superpowers/brainstorm/44502-1776958238/state/events
+.superpowers/brainstorm/44502-1776958238/state/server-info
+.superpowers/brainstorm/44502-1776958238/state/server.pid
+.superpowers/brainstorm/44502-1776958238/content/waiting.html
+.superpowers/brainstorm/44502-1776958238/content/03-asset-count.html
