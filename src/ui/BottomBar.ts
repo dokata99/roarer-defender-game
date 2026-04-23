@@ -216,9 +216,6 @@ export class BottomBar {
       const slowPct = Math.round((1 - lv1.slowMultiplier) * 100);
       lines.push(`Slow: -${slowPct}% / ${(lv1.slowDurationMs / 1000).toFixed(1)}s`);
     }
-    if (type === 'sniper' && this.context.sniperCritChance > 0) {
-      lines.push(`Crit: ${Math.round(this.context.sniperCritChance * 100)}%`);
-    }
     return lines.join('\n');
   }
 

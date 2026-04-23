@@ -43,7 +43,12 @@ function mergeWithDefaults(parsed: unknown): SaveData {
     roarerPoints: typeof p.roarerPoints === 'number' ? p.roarerPoints : base.roarerPoints,
     endlessModeUnlocked:
       typeof p.endlessModeUnlocked === 'boolean' ? p.endlessModeUnlocked : base.endlessModeUnlocked,
-    shopUpgrades: { ...base.shopUpgrades, ...(p.shopUpgrades ?? {}) },
+    shopUpgrades: {
+      startingGold: typeof p.shopUpgrades?.startingGold === 'number' ? p.shopUpgrades.startingGold : base.shopUpgrades.startingGold,
+      towerDamage: typeof p.shopUpgrades?.towerDamage === 'number' ? p.shopUpgrades.towerDamage : base.shopUpgrades.towerDamage,
+      towerSpeed: typeof p.shopUpgrades?.towerSpeed === 'number' ? p.shopUpgrades.towerSpeed : base.shopUpgrades.towerSpeed,
+      discountUpgrades: typeof p.shopUpgrades?.discountUpgrades === 'number' ? p.shopUpgrades.discountUpgrades : base.shopUpgrades.discountUpgrades,
+    },
     stats: { ...base.stats, ...(p.stats ?? {}) },
   };
 }

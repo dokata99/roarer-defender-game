@@ -189,17 +189,11 @@ export class ShopScene extends Phaser.Scene {
     const ctx = new RunContext(this.save.shopUpgrades);
     const dmg = ctx.damageMultiplier.toFixed(2);
     const rate = (1 / ctx.attackIntervalMultiplier).toFixed(2);
-    const range = ctx.rangeBonusTiles.toFixed(1);
-    const place = ctx.placeCostMultiplier.toFixed(2);
     const upgr = ctx.upgradeCostMultiplier.toFixed(2);
-    const bounty = ctx.killBountyMultiplier.toFixed(2);
-    const splash = ctx.splashRadiusBonusTiles.toFixed(1);
-    const crit = Math.round(ctx.sniperCritChance * 100);
 
     return [
-      `Towers:  ×${dmg} damage   ·   ×${rate} attack rate   ·   +${range} range   ·   +${splash} splash   ·   ${crit}% sniper crit`,
-      `Economy:  ${ctx.startingGold}g start   ·   ×${place} placement cost   ·   ×${upgr} upgrade cost   ·   ×${bounty} kill bounty`,
-      `Security:  ${ctx.startingSecurity}%`,
+      `Towers:  ×${dmg} damage   ·   ×${rate} attack rate   ·   ×${upgr} upgrade cost`,
+      `Economy:  ${ctx.startingGold}g start   ·   Security: ${ctx.startingSecurity}%`,
     ].join('\n');
   }
 

@@ -615,11 +615,8 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
       tower.playFireTelegraph();
       const color = TOWER_CONFIGS[tower.type].projectileColor;
       if (tower.type === 'sniper') {
-        const critChance = tower.getCritChance();
-        const isCrit = critChance > 0 && Math.random() < critChance;
-        const damage = isCrit ? stats.damage * 2 : stats.damage;
         this.projectiles.push(
-          new SniperProjectile(this, center.x, center.y, damage, target, isCrit ? 0xffee00 : color, {
+          new SniperProjectile(this, center.x, center.y, stats.damage, target, color, {
             textureKey: TOWER_CONFIGS[tower.type].art?.projectileKey,
           }),
         );
@@ -733,7 +730,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
   }
 
   private onEnemyKilled(enemy: Enemy): void {
-    const bounty = this.context.getKillBounty(enemy.goldOnKill);
+    const bounty = enemy.goldOnKill;
     this.gold += bounty;
     this.enemiesKilled += 1;
     this.hud.setGold(this.gold);
