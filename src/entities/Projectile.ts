@@ -3,11 +3,20 @@ import { CELL_SIZE } from '../config/constants';
 import { PROJECTILE_DEPTH, PROJECTILE_SPEED_PX_PER_SEC } from '../config/gameplay';
 import type { Enemy } from './Enemy';
 
+export interface ProjectileSlowPayload {
+  multiplier: number;
+  durationMs: number;
+}
+
 export interface ProjectileHit {
   damage: number;
   splashRadiusPx?: number;
   position: { x: number; y: number };
   primaryTarget?: Enemy;
+  /** If present, splash AoE applies this slow to every enemy in radius. */
+  slow?: ProjectileSlowPayload;
+  /** Splash hits can opt into damaging flying enemies (Cryolock does, Firewall does not). */
+  canHitFlying?: boolean;
 }
 
 export abstract class Projectile {
@@ -107,6 +116,8 @@ export class SplashProjectile extends Projectile {
   private targetX: number;
   private targetY: number;
   private splashRadiusTiles: number;
+  private slow: ProjectileSlowPayload | undefined;
+  private canHitFlying: boolean;
 
   constructor(
     scene: Phaser.Scene,
@@ -117,11 +128,14 @@ export class SplashProjectile extends Projectile {
     targetY: number,
     splashRadiusTiles: number,
     color: number,
+    opts?: { slow?: ProjectileSlowPayload; canHitFlying?: boolean },
   ) {
     super(scene, color, 6, x, y, damage);
     this.targetX = targetX;
     this.targetY = targetY;
     this.splashRadiusTiles = splashRadiusTiles;
+    this.slow = opts?.slow;
+    this.canHitFlying = opts?.canHitFlying ?? false;
   }
 
   update(deltaSec: number): ProjectileHit | null {
@@ -139,6 +153,8 @@ export class SplashProjectile extends Projectile {
         damage: this.damage,
         position: { x: this.x, y: this.y },
         splashRadiusPx: this.splashRadiusTiles * CELL_SIZE,
+        slow: this.slow,
+        canHitFlying: this.canHitFlying,
       };
     }
     this.x += (dx / dist) * step;
@@ -152,7 +168,7 @@ export class SplashProjectile extends Projectile {
   spawnExplosion(): void {
     const finalRadius = this.splashRadiusTiles * CELL_SIZE;
     const ring = this.scene.add
-      .circle(this.x, this.y, finalRadius, 0xffdd55, 0.5)
+      .circle(this.x, this.y, finalRadius, this.trailColor, 0.5)
       .setDepth(PROJECTILE_DEPTH);
     ring.setScale(0.05);
     this.scene.tweens.add({

@@ -27,7 +27,7 @@ export class RunContext {
     this.placeCostMultiplier = Math.max(0, 1 - 0.1 * upgrades.discountTowers);
     this.upgradeCostMultiplier = Math.max(0, 1 - 0.1 * upgrades.discountUpgrades);
     this.damageMultiplier = 1 + 0.1 * upgrades.towerDamage;
-    this.attackIntervalMultiplier = Math.max(0.1, 1 - 0.08 * upgrades.towerSpeed);
+    this.attackIntervalMultiplier = Math.pow(0.90, upgrades.towerSpeed);
     this.rangeBonusTiles = 0.5 * upgrades.towerRange;
     this.splashRadiusBonusTiles = 0.3 * upgrades.splashRadius;
     this.killBountyMultiplier = 1 + 0.15 * upgrades.killBounty;
@@ -48,6 +48,8 @@ export class RunContext {
         base.splashRadiusTiles !== undefined
           ? base.splashRadiusTiles + this.splashRadiusBonusTiles
           : undefined,
+      slowMultiplier: base.slowMultiplier,
+      slowDurationMs: base.slowDurationMs,
     };
   }
 

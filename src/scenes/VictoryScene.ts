@@ -11,11 +11,21 @@ export class VictoryScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(COLORS.background);
 
     this.add
-      .text(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 140, 'VICTORY', {
-        fontSize: '96px',
-        color: '#ffcc66',
+      .text(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 180, 'INCIDENT CONTAINED', {
+        fontSize: '72px',
+        color: '#66ffff',
         fontFamily: 'sans-serif',
         fontStyle: 'bold',
+        align: 'center',
+      })
+      .setOrigin(0.5);
+
+    this.add
+      .text(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 120, '"The server is yours."', {
+        fontSize: '22px',
+        color: '#ffcc66',
+        fontFamily: 'sans-serif',
+        fontStyle: 'italic',
       })
       .setOrigin(0.5);
 
@@ -42,19 +52,20 @@ export class VictoryScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    if (firstVictory) {
-      this.add
-        .text(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 120, '⚑ Endless Mode Unlocked!', {
-          fontSize: '26px',
-          color: '#66ffff',
-          fontFamily: 'sans-serif',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5);
-    }
+    const footerText = firstVictory
+      ? 'Endless mode online. The attack never stops.'
+      : 'The attack never stops.';
+    this.add
+      .text(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 110, footerText, {
+        fontSize: '18px',
+        color: firstVictory ? '#66ffff' : COLORS.textMuted,
+        fontFamily: 'sans-serif',
+        fontStyle: firstVictory ? 'bold italic' : 'italic',
+      })
+      .setOrigin(0.5);
 
     const back = this.add
-      .text(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 180, 'Back to Menu', {
+      .text(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 170, 'Back to Menu', {
         fontSize: '28px',
         color: COLORS.textPrimary,
         fontFamily: 'sans-serif',

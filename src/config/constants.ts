@@ -16,19 +16,21 @@ export const BOTTOM_BAR_HEIGHT = 110;
 export const GRID_OFFSET_X = Math.floor((CANVAS_WIDTH - GRID_PIXEL_WIDTH) / 2);
 export const GRID_OFFSET_Y = HUD_HEIGHT;
 
+// Palette aligned to 02-01 / 02-03 §1 column B. Cyberpunk neon — cool defense, warm threats.
 export const COLORS = {
-  background: 0x0b0f1a,
-  gridCell: 0x1a2033,
-  gridBorder: 0x2a3a55,
-  portal: 0x9933cc,
-  castle: 0x3366cc,
-  hudBg: 0x141a2a,
-  bottomBarBg: 0x141a2a,
-  textPrimary: '#ffffff',
-  textMuted: '#8896b5',
-  textGold: '#ffcc66',
-  textAccent: '#66ffff',
-  textDanger: '#ff4444',
+  background: 0x0b0c10,
+  gridCell: 0x141726,
+  gridBorder: 0x2a2f4a,
+  portal: 0x6a00ff,
+  portalEdge: 0xff3cf2,
+  castle: 0x00e5ff,
+  hudBg: 0x141726,
+  bottomBarBg: 0x141726,
+  textPrimary: '#c9d1d9',
+  textMuted: '#667788',
+  textGold: '#f7ff4a',
+  textAccent: '#00e5ff',
+  textDanger: '#ff2e63',
 } as const;
 
 export const SCENE_KEYS = {

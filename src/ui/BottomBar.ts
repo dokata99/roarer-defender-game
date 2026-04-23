@@ -3,6 +3,7 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT, BOTTOM_BAR_HEIGHT, COLORS } from '../confi
 import { TOWER_CONFIGS, type TowerType } from '../config/towers';
 import type { RunContext } from '../systems/RunContext';
 import type { Tower } from '../entities/Tower';
+import type { WaveFlavor } from '../config/waveFlavor';
 
 export type GamePhase = 'build' | 'wave';
 
@@ -11,8 +12,10 @@ export interface BottomBarViewState {
   gold: number;
   placementType: TowerType | null;
   selectedTower: Tower | null;
-  nextWaveLabel: string | null;
-  currentWaveLabel: string | null;
+  nextWaveNumber: number | null;
+  nextWaveFlavor: WaveFlavor | null;
+  currentWaveNumber: number | null;
+  currentWaveFlavor: WaveFlavor | null;
 }
 
 export interface BottomBarController {
@@ -55,19 +58,53 @@ export class BottomBar {
 
     if (state.phase === 'build') {
       this.renderTowerPicker(state);
+      this.renderNextWaveFlavor(state);
       this.renderStartWave(state);
     } else {
       this.renderWaveInfo(state);
     }
   }
 
+  /** "WAVE 07 — PING SWEEP" + italic subtitle, wedged between tower picker and Start Wave. */
+  private renderNextWaveFlavor(state: BottomBarViewState): void {
+    if (!state.nextWaveFlavor || state.nextWaveNumber == null) return;
+    const leftEdge = 620;
+    const rightEdge = CANVAS_WIDTH - 170 - 32 - 16;
+    const width = Math.max(160, rightEdge - leftEdge);
+    const centerX = leftEdge + width / 2;
+    const baseY = this.barY + BOTTOM_BAR_HEIGHT / 2 - 14;
+
+    const waveNum = state.nextWaveNumber.toString().padStart(2, '0');
+    const heading = this.scene.add
+      .text(centerX, baseY, `WAVE ${waveNum} — ${state.nextWaveFlavor.name}`, {
+        fontSize: '15px',
+        color: COLORS.textAccent,
+        fontFamily: 'sans-serif',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5, 0);
+
+    const subtitle = this.scene.add
+      .text(centerX, baseY + 20, `"${state.nextWaveFlavor.subtitle}"`, {
+        fontSize: '12px',
+        color: COLORS.textMuted,
+        fontFamily: 'sans-serif',
+        fontStyle: 'italic',
+        wordWrap: { width, useAdvancedWrap: true },
+        align: 'center',
+      })
+      .setOrigin(0.5, 0);
+
+    this.layer.add([heading, subtitle]);
+  }
+
   private renderTowerPicker(state: BottomBarViewState): void {
-    const types: TowerType[] = ['splash', 'sniper'];
-    const startX = 32;
-    const buttonSize = 60;
-    const statsWidth = 130;
-    const statsGap = 8;
-    const slotGap = 18;
+    const types: TowerType[] = ['splash', 'sniper', 'frost'];
+    const startX = 16;
+    const buttonSize = 52;
+    const statsWidth = 108;
+    const statsGap = 6;
+    const slotGap = 10;
     const slotWidth = buttonSize + statsGap + statsWidth;
 
     types.forEach((type, i) => {
@@ -151,11 +188,15 @@ export class BottomBar {
   private towerStatsSummary(type: TowerType): string {
     const lv1 = this.context.getTowerStats(type, 1);
     const lines = [
-      `Damage: ${lv1.damage}`,
-      `Range: ${lv1.rangeTiles.toFixed(1)} tiles`,
+      `Dmg: ${lv1.damage}`,
+      `Rng: ${lv1.rangeTiles.toFixed(1)}`,
       `Rate: ${(1000 / lv1.attackIntervalMs).toFixed(2)}/s`,
     ];
-    if (lv1.splashRadiusTiles) lines.push(`Splash: ${lv1.splashRadiusTiles.toFixed(1)} tiles`);
+    if (lv1.splashRadiusTiles) lines.push(`Splash: ${lv1.splashRadiusTiles.toFixed(1)}`);
+    if (lv1.slowMultiplier !== undefined && lv1.slowDurationMs !== undefined) {
+      const slowPct = Math.round((1 - lv1.slowMultiplier) * 100);
+      lines.push(`Slow: -${slowPct}% / ${(lv1.slowDurationMs / 1000).toFixed(1)}s`);
+    }
     if (type === 'sniper' && this.context.sniperCritChance > 0) {
       lines.push(`Crit: ${Math.round(this.context.sniperCritChance * 100)}%`);
     }
@@ -168,24 +209,29 @@ export class BottomBar {
     const x = CANVAS_WIDTH - width - 32;
     const y = this.barY + 16;
 
-    const rect = this.scene.add.rectangle(x + width / 2, y + height / 2, width, height, 0x225533);
-    rect.setStrokeStyle(3, 0x55ff99, 0.9);
+    // "DEPLOY" per 02-01 §5 / 02-03 §5.2 — thematic rename of the wave-start button.
+    const rect = this.scene.add.rectangle(x + width / 2, y + height / 2, width, height, 0x0b0c10);
+    rect.setStrokeStyle(2, 0x00ff6a, 0.9);
     rect.setInteractive({ useHandCursor: true });
-    rect.on('pointerover', () => rect.setFillStyle(0x2b6a40));
-    rect.on('pointerout', () => rect.setFillStyle(0x225533));
+    rect.on('pointerover', () => rect.setFillStyle(0x0a1f0a));
+    rect.on('pointerout', () => rect.setFillStyle(0x0b0c10));
     rect.on('pointerdown', () => this.controller.onStartWave());
 
     const label = this.scene.add
-      .text(x + width / 2, y + height / 2 - 8, 'Start Wave', {
-        fontSize: '17px',
-        color: COLORS.textPrimary,
-        fontFamily: 'sans-serif',
+      .text(x + width / 2, y + height / 2 - 8, 'DEPLOY', {
+        fontSize: '18px',
+        color: '#00ff6a',
+        fontFamily: 'monospace',
         fontStyle: 'bold',
       })
       .setOrigin(0.5);
 
+    const previewText =
+      state.nextWaveNumber != null
+        ? `Wave ${state.nextWaveNumber.toString().padStart(2, '0')}`
+        : '—';
     const preview = this.scene.add
-      .text(x + width / 2, y + height / 2 + 14, state.nextWaveLabel ?? '—', {
+      .text(x + width / 2, y + height / 2 + 14, previewText, {
         fontSize: '11px',
         color: COLORS.textAccent,
         fontFamily: 'sans-serif',
@@ -196,24 +242,45 @@ export class BottomBar {
   }
 
   private renderWaveInfo(state: BottomBarViewState): void {
+    const waveNum = state.currentWaveNumber != null
+      ? state.currentWaveNumber.toString().padStart(2, '0')
+      : '--';
+    const flavorName = state.currentWaveFlavor?.name ?? '';
+    const headline = flavorName
+      ? `Wave in progress — WAVE ${waveNum}: ${flavorName}`
+      : `Wave in progress — WAVE ${waveNum}`;
+
     const info = this.scene.add
-      .text(
-        32,
-        this.barY + BOTTOM_BAR_HEIGHT / 2 - 10,
-        `Wave in progress — ${state.currentWaveLabel ?? ''}`,
-        {
-          fontSize: '15px',
-          color: COLORS.textAccent,
-          fontFamily: 'sans-serif',
-        },
-      )
+      .text(32, this.barY + BOTTOM_BAR_HEIGHT / 2 - 22, headline, {
+        fontSize: '15px',
+        color: COLORS.textAccent,
+        fontFamily: 'sans-serif',
+        fontStyle: 'bold',
+      })
       .setOrigin(0, 0.5);
     this.layer.add(info);
+
+    if (state.currentWaveFlavor) {
+      const subtitle = this.scene.add
+        .text(
+          32,
+          this.barY + BOTTOM_BAR_HEIGHT / 2 + 0,
+          `"${state.currentWaveFlavor.subtitle}"`,
+          {
+            fontSize: '12px',
+            color: COLORS.textMuted,
+            fontFamily: 'sans-serif',
+            fontStyle: 'italic',
+          },
+        )
+        .setOrigin(0, 0.5);
+      this.layer.add(subtitle);
+    }
 
     const hint = this.scene.add
       .text(
         32,
-        this.barY + BOTTOM_BAR_HEIGHT / 2 + 14,
+        this.barY + BOTTOM_BAR_HEIGHT / 2 + 22,
         'Click a tower to upgrade it. Placing and selling are disabled during waves.',
         {
           fontSize: '11px',
@@ -272,6 +339,10 @@ export class BottomBar {
       `Attack rate: ${(1000 / stats.attackIntervalMs).toFixed(2)}/s`,
     ];
     if (stats.splashRadiusTiles) lines.push(`Splash radius: ${stats.splashRadiusTiles} tiles`);
+    if (stats.slowMultiplier !== undefined && stats.slowDurationMs !== undefined) {
+      const slowPct = Math.round((1 - stats.slowMultiplier) * 100);
+      lines.push(`Slow: -${slowPct}% for ${(stats.slowDurationMs / 1000).toFixed(1)}s`);
+    }
 
     const body = this.scene.add
       .text(infoX, infoY + 24, lines.join('\n'), {

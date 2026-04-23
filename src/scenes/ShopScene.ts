@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, COLORS, SCENE_KEYS } from '../config/constants';
 import { UPGRADE_CONFIGS, nextLevelCost, type UpgradeConfig } from '../config/upgrades';
 import { loadSave, writeSave } from '../systems/SaveManager';
+import { RunContext } from '../systems/RunContext';
 import type { SaveData } from '../types/save';
 
 interface UpgradeRow {
@@ -15,6 +16,7 @@ export class ShopScene extends Phaser.Scene {
   private save!: SaveData;
   private rpText!: Phaser.GameObjects.Text;
   private rows: UpgradeRow[] = [];
+  private summaryText!: Phaser.GameObjects.Text;
 
   constructor() {
     super(SCENE_KEYS.SHOP);
@@ -55,6 +57,7 @@ export class ShopScene extends Phaser.Scene {
     back.on('pointerdown', () => this.scene.start(SCENE_KEYS.MAIN_MENU));
 
     this.renderRows();
+    this.renderSummaryPanel();
     this.refresh();
 
     const reset = this.add
@@ -72,8 +75,8 @@ export class ShopScene extends Phaser.Scene {
   }
 
   private renderRows(): void {
-    const startY = 122;
-    const rowHeight = 54;
+    const startY = 108;
+    const rowHeight = 48;
     const panelX = 60;
     const panelW = CANVAS_WIDTH - 120;
 
@@ -148,6 +151,58 @@ export class ShopScene extends Phaser.Scene {
     });
   }
 
+  private renderSummaryPanel(): void {
+    const panelX = 60;
+    const panelW = CANVAS_WIDTH - 120;
+    const panelY = 596;
+    const panelH = 96;
+
+    const bg = this.add.rectangle(
+      panelX + panelW / 2,
+      panelY + panelH / 2,
+      panelW,
+      panelH,
+      0x141a2a,
+    );
+    bg.setStrokeStyle(1, COLORS.gridBorder, 1);
+
+    this.add
+      .text(panelX + 16, panelY + 8, 'Your Run Effects', {
+        fontSize: '14px',
+        color: COLORS.textAccent,
+        fontFamily: 'sans-serif',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0, 0);
+
+    this.summaryText = this.add
+      .text(panelX + 16, panelY + 30, '', {
+        fontSize: '13px',
+        color: COLORS.textPrimary,
+        fontFamily: 'sans-serif',
+        lineSpacing: 4,
+      })
+      .setOrigin(0, 0);
+  }
+
+  private buildSummaryString(): string {
+    const ctx = new RunContext(this.save.shopUpgrades);
+    const dmg = ctx.damageMultiplier.toFixed(2);
+    const rate = (1 / ctx.attackIntervalMultiplier).toFixed(2);
+    const range = ctx.rangeBonusTiles.toFixed(1);
+    const place = ctx.placeCostMultiplier.toFixed(2);
+    const upgr = ctx.upgradeCostMultiplier.toFixed(2);
+    const bounty = ctx.killBountyMultiplier.toFixed(2);
+    const splash = ctx.splashRadiusBonusTiles.toFixed(1);
+    const crit = Math.round(ctx.sniperCritChance * 100);
+
+    return [
+      `Towers:  ×${dmg} damage   ·   ×${rate} attack rate   ·   +${range} range   ·   +${splash} splash   ·   ${crit}% sniper crit`,
+      `Economy:  ${ctx.startingGold}g start   ·   ×${place} placement cost   ·   ×${upgr} upgrade cost   ·   ×${bounty} kill bounty`,
+      `Survival:  ${ctx.startingLives} lives`,
+    ].join('\n');
+  }
+
   private buy(cfg: UpgradeConfig): void {
     const currentLevel = this.save.shopUpgrades[cfg.id];
     const cost = nextLevelCost(cfg.id, currentLevel);
@@ -161,6 +216,7 @@ export class ShopScene extends Phaser.Scene {
 
   private refresh(): void {
     this.rpText.setText(`Roarer Points: ${this.save.roarerPoints}`);
+    this.summaryText.setText(this.buildSummaryString());
 
     for (const row of this.rows) {
       const level = this.save.shopUpgrades[row.cfg.id];

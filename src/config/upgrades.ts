@@ -34,7 +34,7 @@ export const UPGRADE_CONFIGS: UpgradeConfig[] = [
     description: 'All towers attack faster.',
     maxLevel: 5,
     costs: [4, 8, 13, 19, 27],
-    perLevelEffect: '-8% attack interval',
+    perLevelEffect: '-10% attack interval',
   },
   {
     id: 'towerRange',

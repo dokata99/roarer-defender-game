@@ -15,6 +15,8 @@ import {
 import { tierFromWave, type PathTier } from '../config/pathStyle';
 import { registerPathTextures } from '../ui/PathTextures';
 import { PathRenderer } from '../ui/PathRenderer';
+import { ParticleManager } from '../ui/ParticleManager';
+import { registerParticleTextures } from '../ui/ParticleTextures';
 import { PLACEMENT_HIGHLIGHT_DEPTH, RANGE_INDICATOR_DEPTH } from '../config/gameplay';
 import { TOWER_CONFIGS, type TowerType } from '../config/towers';
 import {
@@ -24,6 +26,14 @@ import {
   type WaveConfig,
 } from '../config/waves';
 import { buildEndlessWave } from '../config/endless';
+import {
+  getCampaignFlavor,
+  getEndlessFlavor,
+  getMilestoneForWave,
+  pickWaveCompleteMessage,
+  resetEndlessFlavorCache,
+  type WaveFlavor,
+} from '../config/waveFlavor';
 import { GridManager, cellKey, type CellCoord } from '../systems/GridManager';
 import { PathfindingManager } from '../systems/PathfindingManager';
 import { WaveManager } from '../systems/WaveManager';
@@ -59,6 +69,9 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
   private pathfinder!: PathfindingManager;
   private waveManager = new WaveManager();
   private pathRenderer!: PathRenderer;
+  private particles!: ParticleManager;
+  /** Persistent postFX vignette that fades in when lives drop below 30%. */
+  private dangerVignette: Phaser.FX.Vignette | null = null;
   private placementHighlight!: Phaser.GameObjects.Rectangle;
   private rangeIndicator!: Phaser.GameObjects.Arc;
 
@@ -158,6 +171,44 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.input.mouse?.disableContextMenu();
 
     this.renderBottomBar();
+
+    this.applyCameraFX();
+
+    registerParticleTextures(this);
+    this.particles = new ParticleManager(this);
+  }
+
+  /** Range-indicator takes on the tower's accent color per 02-03 §2.6. */
+  private tintRangeIndicator(type: TowerType): void {
+    const color = TOWER_CONFIGS[type].color;
+    this.rangeIndicator.setFillStyle(color, 0.08);
+    this.rangeIndicator.setStrokeStyle(1.5, color, 0.75);
+  }
+
+  /** Scene-wide postFX: subtle bloom per 02-01 §6. WebGL-only. */
+  private applyCameraFX(): void {
+    const cam = this.cameras.main;
+    if (this.game.renderer.type !== Phaser.WEBGL) return;
+    // Light bloom — just enough to kiss the neon accents. Anything heavier fuzzes the text.
+    cam.postFX.addBloom(0xffffff, 1, 1, 1, 0.35, 4);
+    // Low-HP danger vignette only. Parked at strength 0; tweens in when lives < 30%.
+    // No baseline vignette — the one in earlier builds crushed the corners too hard.
+    this.dangerVignette = cam.postFX.addVignette(0.5, 0.5, 0.85, 0);
+  }
+
+  /** Toggle the danger vignette when lives cross the 30% threshold. */
+  private updateDangerVignette(): void {
+    if (!this.dangerVignette) return;
+    const ratio = this.lives / this.context.startingLives;
+    // Gentler peak strength — 0.55 looked like black corners, 0.35 reads as "uh oh".
+    const target = ratio < 0.3 ? 0.35 : 0;
+    if (Math.abs(this.dangerVignette.strength - target) < 0.01) return;
+    this.tweens.add({
+      targets: this.dangerVignette,
+      strength: target,
+      duration: 400,
+      ease: 'Sine.InOut',
+    });
   }
 
   private resetState(): void {
@@ -177,6 +228,14 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.waveManager = new WaveManager();
     this.cachedPaths = new Map();
     this.firstBuildHint = null;
+    resetEndlessFlavorCache();
+  }
+
+  private getWaveFlavor(waveNumber: number): WaveFlavor | null {
+    if (waveNumber <= 0) return null;
+    if (this.mode === 'campaign') return getCampaignFlavor(waveNumber);
+    if (waveNumber <= ENDLESS_WARMUP_WAVES) return getCampaignFlavor(waveNumber);
+    return getEndlessFlavor(waveNumber);
   }
 
   // ============================================================
@@ -227,6 +286,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
         const previewStats = this.context.getTowerStats(this.placementType, 1);
         this.rangeIndicator.setPosition(pos.x, pos.y);
         this.rangeIndicator.setRadius(previewStats.rangeTiles * CELL_SIZE);
+        this.tintRangeIndicator(this.placementType);
         this.rangeIndicator.setVisible(true);
       } else {
         this.placementHighlight.setVisible(false);
@@ -237,6 +297,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
       const c = this.selectedTower.getCenter();
       this.rangeIndicator.setPosition(c.x, c.y);
       this.rangeIndicator.setRadius(this.selectedTower.getRangePx());
+      this.tintRangeIndicator(this.selectedTower.type);
       this.rangeIndicator.setVisible(true);
     } else {
       this.placementHighlight.setVisible(false);
@@ -354,7 +415,9 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.waveManager.start(cfg);
 
     this.updateWaveLabel();
-    this.hud.setPhase(`Wave Phase — Wave ${nextWave}: ${cfg.label}`);
+    const flavor = this.getWaveFlavor(nextWave);
+    const flavorTag = flavor ? flavor.name : cfg.label;
+    this.hud.setPhase(`Wave Phase — Wave ${nextWave}: ${flavorTag}`);
     this.renderBottomBar();
   }
 
@@ -451,6 +514,10 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
       if (!path) continue;
       const enemy = new Enemy(this, this.grid, spawn.spec, path);
       this.enemies.push(enemy);
+      // Boss spawn: brief camera shake per 02-01 §6.
+      if (spawn.spec.type === 'boss') {
+        this.cameras.main.shake(300, 0.003);
+      }
     }
 
     // Move enemies
@@ -460,6 +527,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
       if (result === 'reached-castle') {
         this.lives -= enemy.livesLostOnReach;
         this.hud.setLives(this.lives);
+        this.updateDangerVignette();
         enemy.alive = false;
         enemy.destroy();
         if (this.lives <= 0) {
@@ -506,6 +574,10 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
         );
       } else {
         const splashRadius = stats.splashRadiusTiles ?? 1;
+        const slow =
+          tower.type === 'frost' && stats.slowMultiplier !== undefined && stats.slowDurationMs !== undefined
+            ? { multiplier: stats.slowMultiplier, durationMs: stats.slowDurationMs }
+            : undefined;
         this.projectiles.push(
           new SplashProjectile(
             this,
@@ -516,6 +588,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
             target.y,
             splashRadius,
             color,
+            { slow, canHitFlying: tower.type === 'frost' },
           ),
         );
       }
@@ -530,9 +603,11 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
   ): Enemy | null {
     let best: Enemy | null = null;
     let bestDistSq = range * range;
+    // Firewall (splash) cannot target flying; Killswitch (sniper) and Cryolock (frost) can.
+    const skipsFlying = towerType === 'splash';
     for (const enemy of this.enemies) {
       if (!enemy.alive) continue;
-      if (towerType === 'splash' && enemy.isFlying) continue;
+      if (skipsFlying && enemy.isFlying) continue;
       const dx = enemy.x - x;
       const dy = enemy.y - y;
       const d2 = dx * dx + dy * dy;
@@ -551,13 +626,22 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
       if (hit) {
         if (proj instanceof SplashProjectile) {
           proj.spawnExplosion();
+          // Splash debris — ice shards for frost, cyan chips for firewall.
+          this.particles.emitSplashFragments(
+            hit.position.x,
+            hit.position.y,
+            hit.slow !== undefined,
+          );
           this.applySplashDamage(
             hit.position.x,
             hit.position.y,
             hit.splashRadiusPx ?? 0,
             hit.damage,
+            hit.slow,
+            hit.canHitFlying ?? false,
           );
         } else if (hit.primaryTarget) {
+          this.particles.emitHitSpark(hit.position.x, hit.position.y);
           const killed = hit.primaryTarget.takeDamage(hit.damage);
           if (killed) this.onEnemyKilled(hit.primaryTarget);
         }
@@ -572,15 +656,24 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     });
   }
 
-  private applySplashDamage(x: number, y: number, radius: number, damage: number): void {
+  private applySplashDamage(
+    x: number,
+    y: number,
+    radius: number,
+    damage: number,
+    slow: { multiplier: number; durationMs: number } | undefined,
+    canHitFlying: boolean,
+  ): void {
     if (radius <= 0) return;
     const r2 = radius * radius;
     for (const enemy of this.enemies) {
       if (!enemy.alive) continue;
-      if (enemy.isFlying) continue;
+      if (enemy.isFlying && !canHitFlying) continue;
       const dx = enemy.x - x;
       const dy = enemy.y - y;
       if (dx * dx + dy * dy <= r2) {
+        if (slow) enemy.applySlow(slow.multiplier, slow.durationMs);
+        this.particles.emitHitSpark(enemy.x, enemy.y);
         const killed = enemy.takeDamage(damage);
         if (killed) this.onEnemyKilled(enemy);
       }
@@ -593,6 +686,14 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.enemiesKilled += 1;
     this.hud.setGold(this.gold);
     this.spawnGoldDropText(enemy.x, enemy.y, bounty);
+    // Death burst — per 02-03 §6, each enemy type has its own palette.
+    this.particles.emitEnemyDeath(enemy.type, enemy.x, enemy.y);
+    this.particles.emitGoldSparkle(enemy.x, enemy.y);
+    // Boss death: camera shake + chromatic flash per 02-01 §6.
+    if (enemy.type === 'boss') {
+      this.cameras.main.shake(400, 0.008);
+      this.cameras.main.flash(80, 255, 60, 160);
+    }
     enemy.destroy();
   }
 
@@ -621,10 +722,17 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
 
   private onWaveComplete(): void {
     this.waveManager.finish();
-    // Campaign completes after wave 10; endless never completes.
+    // Campaign completes after the final wave; endless never completes.
     if (this.mode === 'campaign' && this.waveIndex >= TOTAL_CAMPAIGN_WAVES) {
       this.endRun('victory');
       return;
+    }
+    this.showWaveCompleteMessage();
+    if (this.mode === 'campaign') {
+      const milestone = getMilestoneForWave(this.waveIndex);
+      if (milestone) {
+        this.showMilestoneCallout(milestone.headline, milestone.subtitle);
+      }
     }
     this.phase = 'build';
     this.hud.setPhase(
@@ -634,6 +742,74 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     );
     this.pathRenderer.render(this.cachedPaths, this.getCurrentPathTier());
     this.renderBottomBar();
+  }
+
+  private showWaveCompleteMessage(): void {
+    const msg = pickWaveCompleteMessage();
+    const text = this.add
+      .text(CANVAS_WIDTH / 2, GRID_OFFSET_Y + 40, msg, {
+        fontSize: '26px',
+        color: '#66ffcc',
+        fontFamily: 'sans-serif',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(200)
+      .setAlpha(0);
+    this.tweens.add({
+      targets: text,
+      alpha: 1,
+      duration: 180,
+      yoyo: true,
+      hold: 900,
+      onComplete: () => text.destroy(),
+    });
+  }
+
+  private showMilestoneCallout(headline: string, subtitle: string): void {
+    const centerY = GRID_OFFSET_Y + (GRID_ROWS * CELL_SIZE) / 2;
+
+    const shade = this.add
+      .rectangle(CANVAS_WIDTH / 2, centerY, CANVAS_WIDTH, 180, 0x000000, 0.55)
+      .setDepth(999)
+      .setAlpha(0);
+
+    const head = this.add
+      .text(CANVAS_WIDTH / 2, centerY - 22, headline, {
+        fontSize: '44px',
+        color: '#66ffff',
+        fontFamily: 'sans-serif',
+        fontStyle: 'bold',
+        align: 'center',
+      })
+      .setOrigin(0.5)
+      .setDepth(1000)
+      .setAlpha(0);
+
+    const sub = this.add
+      .text(CANVAS_WIDTH / 2, centerY + 28, subtitle, {
+        fontSize: '20px',
+        color: COLORS.textPrimary,
+        fontFamily: 'sans-serif',
+        fontStyle: 'italic',
+        align: 'center',
+      })
+      .setOrigin(0.5)
+      .setDepth(1000)
+      .setAlpha(0);
+
+    this.tweens.add({
+      targets: [shade, head, sub],
+      alpha: { from: 0, to: 1 },
+      duration: 250,
+      yoyo: true,
+      hold: 1500,
+      onComplete: () => {
+        shade.destroy();
+        head.destroy();
+        sub.destroy();
+      },
+    });
   }
 
   private endRun(outcome: 'defeat' | 'victory'): void {
@@ -716,8 +892,10 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
       gold: this.gold,
       placementType: this.placementType,
       selectedTower: this.selectedTower,
-      nextWaveLabel: nextCfg ? `Wave ${nextCfg.waveNumber}: ${nextCfg.label}` : null,
-      currentWaveLabel: currentCfg ? `Wave ${currentCfg.waveNumber}: ${currentCfg.label}` : null,
+      nextWaveNumber: nextCfg ? nextCfg.waveNumber : null,
+      nextWaveFlavor: nextCfg ? this.getWaveFlavor(nextCfg.waveNumber) : null,
+      currentWaveNumber: currentCfg ? currentCfg.waveNumber : null,
+      currentWaveFlavor: currentCfg ? this.getWaveFlavor(currentCfg.waveNumber) : null,
     });
   }
 
@@ -792,30 +970,37 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
         if (type === 'portal') fill = COLORS.portal;
         else if (type === 'castle') fill = COLORS.castle;
 
-        g.fillStyle(fill, 1);
+        g.fillStyle(fill, type === 'portal' || type === 'castle' ? 0.18 : 1);
         g.fillRect(x, y, CELL_SIZE, CELL_SIZE);
       }
     }
+    // Circuit-trace overlay per 02-01 §4 — deterministic pseudo-random from grid pos.
+    this.drawCircuitOverlay(g);
+  }
 
-    const portalCenter = this.grid.cellToPixel(0, 3);
-    this.add
-      .text(portalCenter.x, portalCenter.y, 'WWW', {
-        fontSize: '14px',
-        color: COLORS.textPrimary,
-        fontFamily: 'sans-serif',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
+  /** Thin circuit traces and node dots between grid intersections, per 02-01 §4. */
+  private drawCircuitOverlay(g: Phaser.GameObjects.Graphics) {
+    const nodeColor = COLORS.gridBorder;
+    for (let row = 0; row <= GRID_ROWS; row++) {
+      for (let col = 0; col <= GRID_COLS; col++) {
+        const seed = row * 17 + col * 31;
+        const ix = GRID_OFFSET_X + col * CELL_SIZE;
+        const iy = GRID_OFFSET_Y + row * CELL_SIZE;
 
-    const castleCenter = this.grid.cellToPixel(GRID_COLS - 1, 3);
-    this.add
-      .text(castleCenter.x, castleCenter.y, 'SRV', {
-        fontSize: '14px',
-        color: COLORS.textPrimary,
-        fontFamily: 'sans-serif',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
+        if (seed % 3 === 0) {
+          g.fillStyle(nodeColor, 0.5);
+          g.fillCircle(ix, iy, 1.5);
+        }
+        if (seed % 5 === 0 && col < GRID_COLS) {
+          g.lineStyle(0.5, nodeColor, 0.3);
+          g.lineBetween(ix, iy, ix + CELL_SIZE, iy);
+        }
+        if (seed % 7 === 0 && row < GRID_ROWS) {
+          g.lineStyle(0.5, nodeColor, 0.3);
+          g.lineBetween(ix, iy, ix, iy + CELL_SIZE);
+        }
+      }
+    }
   }
 
   private drawGridLines() {
@@ -837,29 +1022,58 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     }
   }
 
+  /** Portal slot on the left edge. 02-03 §4.3 — deep purple core, magenta edge glow, scan line. */
   private drawPortalArt() {
     const pad = 20;
     const width = GRID_OFFSET_X - pad * 2;
     const topLeft = this.grid.cellToTopLeft(0, 3);
     const height = CELL_SIZE;
+    const x = pad;
+    const y = topLeft.y;
 
     const g = this.add.graphics();
-    g.fillStyle(COLORS.portal, 1);
-    g.fillRect(pad, topLeft.y, width, height);
-    g.lineStyle(2, 0xffffff, 0.5);
-    g.strokeRect(pad, topLeft.y, width, height);
+    // Deep-purple body
+    g.fillStyle(COLORS.portal, 0.85);
+    g.fillRoundedRect(x, y, width, height, 8);
+    // Magenta edge — a second stroke layer for a neon feel
+    g.lineStyle(3, COLORS.portalEdge, 1);
+    g.strokeRoundedRect(x, y, width, height, 8);
 
+    // Pulsing inner glow (separate graphic so we can tween alpha without redrawing)
+    const glow = this.add.graphics();
+    glow.lineStyle(2, COLORS.portalEdge, 1);
+    glow.strokeRoundedRect(x - 2, y - 2, width + 4, height + 4, 10);
+    this.tweens.add({
+      targets: glow,
+      alpha: { from: 0.2, to: 0.8 },
+      duration: 2000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.InOut',
+    });
+
+    // "WWW" label in cyan
     this.add
-      .text(pad + width / 2, topLeft.y + height / 2, 'WWW\nPORTAL', {
-        fontSize: '18px',
-        color: COLORS.textPrimary,
-        fontFamily: 'sans-serif',
+      .text(x + width / 2, y + height / 2, 'WWW', {
+        fontSize: '20px',
+        color: '#00e5ff',
+        fontFamily: 'monospace',
         fontStyle: 'bold',
-        align: 'center',
       })
       .setOrigin(0.5);
+
+    // Horizontal scan line — sweeps top-to-bottom inside the portal frame
+    const scan = this.add.rectangle(x + width / 2, y, width - 8, 2, 0x00e5ff, 0.65);
+    this.tweens.add({
+      targets: scan,
+      y: { from: y + 4, to: y + height - 4 },
+      duration: 2000,
+      repeat: -1,
+      ease: 'Linear',
+    });
   }
 
+  /** Server rack on the right. 02-03 §4.4 — cyan outline, bay dividers, blinking LEDs. */
   private drawCastleArt() {
     const pad = 20;
     const width = GRID_OFFSET_X - pad * 2;
@@ -867,20 +1081,43 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     const x = gridRight + pad;
     const topLeft = this.grid.cellToTopLeft(GRID_COLS - 1, 3);
     const height = CELL_SIZE;
+    const y = topLeft.y;
 
     const g = this.add.graphics();
-    g.fillStyle(COLORS.castle, 1);
-    g.fillRect(x, topLeft.y, width, height);
-    g.lineStyle(2, 0xffffff, 0.5);
-    g.strokeRect(x, topLeft.y, width, height);
+    g.fillStyle(COLORS.gridCell, 1);
+    g.fillRect(x, y, width, height);
+    g.lineStyle(2, COLORS.castle, 1);
+    g.strokeRect(x, y, width, height);
+
+    // Bay dividers (3 horizontal lines at 25/50/75%)
+    g.lineStyle(1, COLORS.gridBorder, 1);
+    for (let i = 1; i <= 3; i++) {
+      const by = y + (height * i) / 4;
+      g.lineBetween(x + 6, by, x + width - 6, by);
+    }
+
+    // Status LEDs on the left of each bay
+    const ledColor = 0x00ff6a;
+    for (let i = 0; i < 4; i++) {
+      const ly = y + (height * (i + 0.5)) / 4;
+      const led = this.add.circle(x + 8, ly, 2, ledColor, 1);
+      // Stagger the blinks — different phases per LED.
+      this.tweens.add({
+        targets: led,
+        alpha: { from: 1, to: 0.3 },
+        duration: 500 + i * 220,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.InOut',
+      });
+    }
 
     this.add
-      .text(x + width / 2, topLeft.y + height / 2, 'SERVER\n(castle)', {
-        fontSize: '16px',
-        color: COLORS.textPrimary,
-        fontFamily: 'sans-serif',
+      .text(x + width / 2, y + height / 2, 'SERVER', {
+        fontSize: '14px',
+        color: '#00e5ff',
+        fontFamily: 'monospace',
         fontStyle: 'bold',
-        align: 'center',
       })
       .setOrigin(0.5);
   }

@@ -9,6 +9,9 @@ import {
 import { TOWER_DEPTH } from '../config/gameplay';
 import type { RunContext } from '../systems/RunContext';
 
+/** Outer half-width of each tower's visible footprint. Shared by all three towers. */
+const TOWER_RADIUS = (CELL_SIZE - 16) / 2;
+
 export class Tower {
   readonly type: TowerType;
   readonly col: number;
@@ -16,8 +19,15 @@ export class Tower {
   level: number = 1;
   private totalGoldSpent: number;
   private container: Phaser.GameObjects.Container;
-  private rect: Phaser.GameObjects.Rectangle;
-  private levelText: Phaser.GameObjects.Text;
+  /** Static parts of the tower body — redrawn on upgrade. */
+  private base: Phaser.GameObjects.Graphics;
+  /** Rotating inner element (Firewall core / Killswitch crosshair / Cryolock spokes). */
+  private rotor: Phaser.GameObjects.Graphics;
+  /** Cryolock hub that pulses alpha. Null for other towers. */
+  private hub: Phaser.GameObjects.Graphics | null = null;
+  /** Cryolock icicle orbit (rotates counter to the spokes). Null for other towers. */
+  private orbit: Phaser.GameObjects.Container | null = null;
+  private idleTweens: Phaser.Tweens.Tween[] = [];
   private scene: Phaser.Scene;
   lastFireAt: number = 0;
 
@@ -36,28 +46,31 @@ export class Tower {
     this.row = row;
     this.totalGoldSpent = context.getPlaceCost(type);
 
-    const size = CELL_SIZE - 12;
-    this.rect = scene.add.rectangle(0, 0, size, size, TOWER_CONFIGS[type].color);
-    this.rect.setStrokeStyle(2, 0x000000, 0.6);
-    this.levelText = scene.add
-      .text(0, 0, '1', {
-        fontSize: '22px',
-        color: '#ffffff',
-        fontFamily: 'sans-serif',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
-    this.container = scene.add.container(centerX, centerY, [this.rect, this.levelText]);
+    this.base = scene.add.graphics();
+    this.rotor = scene.add.graphics();
+
+    const children: Phaser.GameObjects.GameObject[] = [this.base, this.rotor];
+    if (type === 'frost') {
+      this.hub = scene.add.graphics();
+      this.orbit = scene.add.container(0, 0);
+      children.push(this.orbit, this.hub);
+    }
+
+    this.container = scene.add.container(centerX, centerY, children);
     this.container.setDepth(TOWER_DEPTH);
+
+    this.redraw();
+    this.startIdleAnimations();
   }
 
   /** Brief scale bump when the tower fires — signals that it's actively attacking. */
   playFireTelegraph(): void {
-    this.scene.tweens.killTweensOf(this.rect);
-    this.rect.setScale(1.25);
+    this.scene.tweens.killTweensOf(this.container);
+    const selectedScale = 1.0; // telegraph returns to base scale
+    this.container.setScale(1.25);
     this.scene.tweens.add({
-      targets: this.rect,
-      scale: 1,
+      targets: this.container,
+      scale: selectedScale,
       duration: 140,
       ease: 'Quad.Out',
     });
@@ -84,7 +97,11 @@ export class Tower {
     if (!this.canUpgrade()) return;
     this.totalGoldSpent += this.upgradeCost();
     this.level += 1;
-    this.levelText.setText(String(this.level));
+    this.redraw();
+    if (this.level === MAX_TOWER_LEVEL) {
+      // L3 neon halo per 02-01 §2 / 02-03 §2.5. WebGL-only; silently skipped otherwise.
+      this.container.postFX?.addGlow(TOWER_CONFIGS[this.type].color, 4, 0, false);
+    }
   }
 
   sellRefund(): number {
@@ -104,6 +121,250 @@ export class Tower {
   }
 
   destroy(): void {
+    this.idleTweens.forEach((t) => t.stop());
+    this.idleTweens = [];
     this.container.destroy();
+  }
+
+  // ============================================================
+  // Drawing
+  // ============================================================
+
+  private redraw(): void {
+    this.base.clear();
+    this.rotor.clear();
+    this.hub?.clear();
+    if (this.orbit) this.orbit.removeAll(true);
+
+    switch (this.type) {
+      case 'splash':
+        this.drawFirewall();
+        break;
+      case 'sniper':
+        this.drawKillswitch();
+        break;
+      case 'frost':
+        this.drawCryolock();
+        break;
+    }
+  }
+
+  /** Octagon + concentric rings + rotating square core. 02-01 §2 / 02-03 §2.2. */
+  private drawFirewall(): void {
+    const r = TOWER_RADIUS;
+    const color = TOWER_CONFIGS.splash.color;
+
+    // Octagon body
+    this.base.lineStyle(2, color, 1);
+    this.base.fillStyle(0x141726, 0.6);
+    this.base.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const angle = (Math.PI / 4) * i - Math.PI / 8;
+      const px = Math.cos(angle) * r;
+      const py = Math.sin(angle) * r;
+      if (i === 0) this.base.moveTo(px, py);
+      else this.base.lineTo(px, py);
+    }
+    this.base.closePath();
+    this.base.fillPath();
+    this.base.strokePath();
+
+    // Level rings (concentric, fainter as they go in)
+    this.base.lineStyle(1, color, 0.55);
+    if (this.level >= 1) this.base.strokeCircle(0, 0, r * 0.82);
+    if (this.level >= 2) this.base.strokeCircle(0, 0, r * 0.66);
+    if (this.level >= 3) {
+      this.base.lineStyle(1.5, color, 0.85);
+      this.base.strokeCircle(0, 0, r * 0.5);
+    }
+
+    // Rotating core: small square, brighter with level
+    const sz = 5 + this.level;
+    this.rotor.fillStyle(color, 1);
+    this.rotor.lineStyle(1, 0xffffff, 0.85);
+    this.rotor.fillRect(-sz / 2, -sz / 2, sz, sz);
+    this.rotor.strokeRect(-sz / 2, -sz / 2, sz, sz);
+  }
+
+  /** Diamond + dots-at-corners + rotating crosshair core. 02-01 §2 / 02-03 §2.3. */
+  private drawKillswitch(): void {
+    const r = TOWER_RADIUS;
+    const color = TOWER_CONFIGS.sniper.color;
+
+    // Diamond body (rhombus: taller than wide)
+    this.base.lineStyle(2, color, 1);
+    this.base.fillStyle(0x141726, 0.6);
+    this.base.beginPath();
+    this.base.moveTo(0, -r);
+    this.base.lineTo(r * 0.72, 0);
+    this.base.lineTo(0, r);
+    this.base.lineTo(-r * 0.72, 0);
+    this.base.closePath();
+    this.base.fillPath();
+    this.base.strokePath();
+
+    // Level dots at each diamond corner, walking inward along the corner-to-center ray.
+    const corners = [
+      { x: 0, y: -r },
+      { x: r * 0.72, y: 0 },
+      { x: 0, y: r },
+      { x: -r * 0.72, y: 0 },
+    ];
+    this.base.fillStyle(color, 1);
+    for (const corner of corners) {
+      for (let i = 0; i < this.level; i++) {
+        const t = 0.8 - i * 0.08;
+        this.base.fillCircle(corner.x * t, corner.y * t, 1.6);
+      }
+    }
+
+    // Rotating crosshair core (thin + shape with center dot)
+    const arm = 9;
+    this.rotor.lineStyle(1.5, 0xffffff, 0.9);
+    this.rotor.lineBetween(-arm, 0, arm, 0);
+    this.rotor.lineBetween(0, -arm, 0, arm);
+    this.rotor.fillStyle(color, 1);
+    this.rotor.fillCircle(0, 0, 2);
+  }
+
+  /** 6-spoke snowflake + hub + orbiting icicles. 02-03 §2.4 (NEW). */
+  private drawCryolock(): void {
+    const r = TOWER_RADIUS;
+    const color = TOWER_CONFIGS.frost.color;
+    const spokeR = r * 0.82;
+
+    // Spokes live on the rotor so they rotate with idle animation.
+    // L1: all 6 spokes at 50% alpha ("dim"). L2+: full alpha.
+    const spokeAlpha = this.level >= 2 ? 1 : 0.55;
+    this.rotor.lineStyle(2, color, spokeAlpha);
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 3) * i;
+      this.rotor.lineBetween(0, 0, Math.cos(a) * spokeR, Math.sin(a) * spokeR);
+    }
+    // Tip dots at spoke ends
+    this.rotor.fillStyle(color, spokeAlpha);
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 3) * i;
+      this.rotor.fillCircle(Math.cos(a) * spokeR, Math.sin(a) * spokeR, 2);
+    }
+
+    // Hexagonal hub (pulses alpha)
+    if (this.hub) {
+      const hubR = 6;
+      this.hub.fillStyle(0x141726, 1);
+      this.hub.lineStyle(1.5, color, 1);
+      this.hub.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 3) * i;
+        const px = Math.cos(a) * hubR;
+        const py = Math.sin(a) * hubR;
+        if (i === 0) this.hub.moveTo(px, py);
+        else this.hub.lineTo(px, py);
+      }
+      this.hub.closePath();
+      this.hub.fillPath();
+      this.hub.strokePath();
+      // Inner glyph dot
+      this.hub.fillStyle(0xffffff, 0.9);
+      this.hub.fillCircle(0, 0, 1.5);
+    }
+
+    // Orbiting icicles: L1 = 0, L2 = 3, L3 = 6.
+    if (this.orbit) {
+      const iciclesCount = this.level >= 3 ? 6 : this.level >= 2 ? 3 : 0;
+      const orbitR = r * 0.92;
+      for (let i = 0; i < iciclesCount; i++) {
+        const a = (Math.PI * 2 * i) / iciclesCount;
+        const g = this.scene.add.graphics();
+        g.fillStyle(color, 1);
+        g.lineStyle(1, 0xffffff, 0.8);
+        // Small diamond, long axis horizontal (points radially once rotated into place).
+        g.beginPath();
+        g.moveTo(4, 0);
+        g.lineTo(0, -2);
+        g.lineTo(-4, 0);
+        g.lineTo(0, 2);
+        g.closePath();
+        g.fillPath();
+        g.strokePath();
+        g.setPosition(Math.cos(a) * orbitR, Math.sin(a) * orbitR);
+        g.setRotation(a);
+        this.orbit.add(g);
+      }
+    }
+  }
+
+  // ============================================================
+  // Animations
+  // ============================================================
+
+  private startIdleAnimations(): void {
+    // Stop any existing tweens (safe on construct, defensive on re-init).
+    this.idleTweens.forEach((t) => t.stop());
+    this.idleTweens = [];
+
+    switch (this.type) {
+      case 'splash': {
+        // Core rotates 360° per 4s
+        this.idleTweens.push(
+          this.scene.tweens.add({
+            targets: this.rotor,
+            angle: 360,
+            duration: 4000,
+            repeat: -1,
+          }),
+        );
+        break;
+      }
+      case 'sniper': {
+        // Crosshair rotates 360° per 6s (slower than Firewall — implies patience)
+        this.idleTweens.push(
+          this.scene.tweens.add({
+            targets: this.rotor,
+            angle: 360,
+            duration: 6000,
+            repeat: -1,
+          }),
+        );
+        break;
+      }
+      case 'frost': {
+        // Spokes rotate CW over 6s
+        this.idleTweens.push(
+          this.scene.tweens.add({
+            targets: this.rotor,
+            angle: 360,
+            duration: 6000,
+            repeat: -1,
+          }),
+        );
+        // Icicles counter-rotate CCW over 8s
+        if (this.orbit) {
+          this.idleTweens.push(
+            this.scene.tweens.add({
+              targets: this.orbit,
+              angle: -360,
+              duration: 8000,
+              repeat: -1,
+            }),
+          );
+        }
+        // Hub pulses alpha 0.6 → 1.0 on sine yoyo
+        if (this.hub) {
+          this.hub.setAlpha(0.6);
+          this.idleTweens.push(
+            this.scene.tweens.add({
+              targets: this.hub,
+              alpha: 1,
+              duration: 1800,
+              yoyo: true,
+              repeat: -1,
+              ease: 'Sine.InOut',
+            }),
+          );
+        }
+        break;
+      }
+    }
   }
 }

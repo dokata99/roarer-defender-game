@@ -19,8 +19,8 @@ export class PauseOverlay {
       0.6,
     );
     const title = scene.add
-      .text(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 80, 'PAUSED', {
-        fontSize: '64px',
+      .text(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 100, 'SYSTEM PAUSED', {
+        fontSize: '56px',
         color: COLORS.textPrimary,
         fontFamily: 'sans-serif',
         fontStyle: 'bold',
@@ -47,7 +47,16 @@ export class PauseOverlay {
       .setInteractive({ useHandCursor: true });
     quitBtn.on('pointerdown', () => onQuit());
 
-    this.layer.add([bg, title, resumeBtn, quitBtn]);
+    const footer = scene.add
+      .text(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 130, 'Threat actors awaiting signal.', {
+        fontSize: '16px',
+        color: COLORS.textMuted,
+        fontFamily: 'sans-serif',
+        fontStyle: 'italic',
+      })
+      .setOrigin(0.5);
+
+    this.layer.add([bg, title, resumeBtn, quitBtn, footer]);
   }
 
   show(): void {

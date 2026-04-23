@@ -9,7 +9,8 @@ import { StatsScene } from './scenes/StatsScene';
 import { CreditsScene } from './scenes/CreditsScene';
 
 const config: Phaser.Types.Core.GameConfig = {
-  type: Phaser.AUTO,
+  // WebGL required for postFX (bloom, vignette, glow). See 02-03 §8.
+  type: Phaser.WEBGL,
   parent: 'app',
   width: CANVAS_WIDTH,
   height: CANVAS_HEIGHT,

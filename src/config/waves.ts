@@ -115,7 +115,10 @@ export const CAMPAIGN_WAVES: WaveConfig[] = [
     interleave(fastSpawns(30, 900), flyingSpawns(12, 220)),
   ),
   campaignWave(19, '8 Mini-Boss', sec(0.9), eliteSpawns(8, 2400)),
-  campaignWave(20, 'FINAL BOSS', 500, [makeEnemySpec('boss', 9000)]),
+  campaignWave(20, 'FINAL BOSS', 500, [
+    // Final boss is near-immune to slow per 01-11 (ROOT ACCESS exception).
+    makeEnemySpec('boss', 9000, undefined, undefined, 0.9),
+  ]),
 ];
 
 /** Legacy accessor for code still expecting the old flat list (e.g. HUD preview). */
