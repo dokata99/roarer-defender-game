@@ -116,10 +116,6 @@ export class Tower {
     this.container.setScale(selected ? 1.1 : 1.0);
   }
 
-  getCritChance(): number {
-    return this.type === 'sniper' ? this.context.sniperCritChance : 0;
-  }
-
   destroy(): void {
     this.idleTweens.forEach((t) => t.stop());
     this.idleTweens = [];
