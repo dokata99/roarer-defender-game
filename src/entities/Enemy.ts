@@ -1,8 +1,7 @@
 import Phaser from 'phaser';
 import { CELL_SIZE } from '../config/constants';
 import { ENEMY_CONFIGS, type EnemyType } from '../config/enemies';
-import type { CellCoord } from '../systems/GridManager';
-import type { GridManager } from '../systems/GridManager';
+import type { PixelCoord } from '../systems/GridManager';
 import { ENEMY_DEPTH, HP_BAR_DEPTH } from '../config/gameplay';
 
 export type EnemyUpdateResult = 'alive' | 'reached-castle';
@@ -81,8 +80,16 @@ export class Enemy {
   readonly slowResistance: number;
   readonly radius: number;
 
-  /** Primary body shape. For Worm this is the Arc; for others, a Graphics redrawn on tint change. */
-  private body!: Phaser.GameObjects.Arc | Phaser.GameObjects.Graphics;
+  /**
+   * Primary body shape.
+   * - If the type has a loaded sprite art, this is an Image (tinted for hit-flash/slow).
+   * - Otherwise Worm uses Arc, and elite/flying/boss use Graphics redrawn on tint change.
+   */
+  private body!: Phaser.GameObjects.Arc | Phaser.GameObjects.Graphics | Phaser.GameObjects.Image;
+  /** True when the body is an Image (sprite) rather than procedural graphics. */
+  private readonly useArtPath: boolean;
+  /** Captured scale after setDisplaySize, so pulse/scale tweens don't drift. */
+  private baseBodyScale = 1;
   /** Optional decorations that don't change color (Trojan shield, Packet inner line, boss "0" glyph). */
   private decor: Phaser.GameObjects.Graphics | null = null;
   /** Trojan rotating shield overlay. */
@@ -120,20 +127,19 @@ export class Enemy {
 
   x: number;
   y: number;
-  /** For flying: the straight-line target (nearest castle cell), set once at construct. */
+  /** For flying: the straight-line target (last point on the pixel path), set once at construct. */
   private targetX = 0;
   private targetY = 0;
-  /** For ground: the A* path from portal to castle. */
-  private path: CellCoord[];
+  /** Smoothed pixel polyline from portal to castle. */
+  private path: PixelCoord[];
   private pathIndex = 0;
 
   alive = true;
 
   constructor(
     private scene: Phaser.Scene,
-    private grid: GridManager,
     spec: EnemySpec,
-    path: CellCoord[],
+    path: PixelCoord[],
   ) {
     const cfg = ENEMY_CONFIGS[spec.type];
     this.type = spec.type;
@@ -148,17 +154,18 @@ export class Enemy {
     this.radius = cfg.radius;
     this.path = path;
 
-    const spawn = grid.cellToPixel(path[0].col, path[0].row);
-    this.x = spawn.x;
-    this.y = spawn.y;
+    const artKey = cfg.art?.bodyKey;
+    this.useArtPath = !!artKey && scene.textures.exists(artKey);
+
+    this.x = path[0].x;
+    this.y = path[0].y;
     this.pathIndex = 1;
 
     if (this.isFlying) {
-      // Straight-line target: the last cell of the A* path (castle). 02-03 §3.5 gameplay fix.
+      // Straight-line target: final point on the path (castle).
       const last = path[path.length - 1];
-      const target = grid.cellToPixel(last.col, last.row);
-      this.targetX = target.x;
-      this.targetY = target.y;
+      this.targetX = last.x;
+      this.targetY = last.y;
     }
 
     this.createBody();
@@ -172,6 +179,19 @@ export class Enemy {
 
   private createBody(): void {
     const depth = this.isFlying ? ENEMY_DEPTH + 5 : ENEMY_DEPTH;
+
+    if (this.useArtPath) {
+      const cfg = ENEMY_CONFIGS[this.type];
+      const img = this.scene.add.image(this.x, this.y, cfg.art!.bodyKey);
+      // Sprite footprint is a bit larger than the logical hitbox radius so
+      // the artwork reads clearly while combat math still uses `radius`.
+      const size = this.radius * 2.4;
+      img.setDisplaySize(size, size);
+      this.baseBodyScale = img.scaleX;
+      img.setDepth(depth);
+      this.body = img;
+      return;
+    }
 
     switch (this.type) {
       case 'fast':
@@ -209,8 +229,9 @@ export class Enemy {
   private applyTypeSpecificSetup(): void {
     const cfg = ENEMY_CONFIGS[this.type];
 
-    if (this.type === 'fast') {
+    if (this.type === 'fast' && !this.useArtPath) {
       // Worm trail: 3 world-space dots trailing the head.
+      // Suppressed on art path — trailing dots don't match an illustrated sprite.
       const depth = ENEMY_DEPTH - 1;
       for (let i = 0; i < WORM_TRAIL_COUNT; i++) {
         const r = Math.max(2, this.radius - 3 - i * 2);
@@ -223,41 +244,49 @@ export class Enemy {
     }
 
     if (this.type === 'elite') {
-      // Trojan rotating shield — a faint outer hexagon at 20% alpha.
-      this.shield = this.scene.add.graphics();
-      this.shield.setDepth(ENEMY_DEPTH);
-      this.drawTrojanShield();
-      this.shieldTween = this.scene.tweens.add({
-        targets: this.shield,
-        angle: 360,
-        duration: 8000,
-        repeat: -1,
-      });
-      // Seed the stutter timer.
+      if (!this.useArtPath) {
+        // Trojan rotating shield — a faint outer hexagon at 20% alpha.
+        this.shield = this.scene.add.graphics();
+        this.shield.setDepth(ENEMY_DEPTH);
+        this.drawTrojanShield();
+        this.shieldTween = this.scene.tweens.add({
+          targets: this.shield,
+          angle: 360,
+          duration: 8000,
+          repeat: -1,
+        });
+      }
+      // Stutter timer runs regardless — it shifts the whole body offset and
+      // still reads well on an Ogre sprite.
       this.stutterCountdownMs =
         TROJAN_STUTTER_MIN_MS + Math.random() * (TROJAN_STUTTER_MAX_MS - TROJAN_STUTTER_MIN_MS);
     }
 
     if (this.isFlying) {
-      // Packet: altitude shadow below + motion-trail polyline.
+      // Altitude shadow below the flyer — works for both procedural packet and Dragon sprite.
       this.shadow = this.scene.add
         .ellipse(this.x, this.y + 10, this.radius * 1.6, this.radius * 0.55, 0x000000, 0.35)
         .setDepth(ENEMY_DEPTH - 1);
-      this.packetTrail = this.scene.add.graphics().setDepth(ENEMY_DEPTH + 4);
+      if (!this.useArtPath) {
+        // Motion-trail polyline — only drawn for procedural Packet.
+        this.packetTrail = this.scene.add.graphics().setDepth(ENEMY_DEPTH + 4);
+      }
     }
 
     if (cfg.pulses) {
-      // Zero-Day boss: constant scale pulse + magenta glow postFX.
+      // Boss scale pulse. On art path, pulse around baseBodyScale so the
+      // sprite's setDisplaySize isn't blown out by literal 0.9–1.1 values.
+      const base = this.useArtPath ? this.baseBodyScale : 1;
       this.pulseTween = this.scene.tweens.add({
         targets: this.body,
-        scale: { from: 0.9, to: 1.1 },
+        scale: { from: base * 0.9, to: base * 1.1 },
         yoyo: true,
         repeat: -1,
         duration: 500,
         ease: 'Sine.InOut',
       });
-      // Graphics supports postFX in Phaser 3.60+. Null-safe in case a renderer doesn't.
-      (this.body as Phaser.GameObjects.Graphics).postFX?.addGlow(0xff3cf2, 6, 0, false);
+      // Both Graphics and Image support postFX in Phaser 3.60+.
+      this.body.postFX?.addGlow(0xff3cf2, 6, 0, false);
     }
   }
 
@@ -290,13 +319,10 @@ export class Enemy {
     return result;
   }
 
-  /** Ground enemies: walk the A* path cell-to-cell. */
+  /** Ground enemies: walk the smoothed polyline from one sample point to the next. */
   private advancePath(deltaSec: number): EnemyUpdateResult {
     if (this.pathIndex >= this.path.length) return 'reached-castle';
-    const target = this.grid.cellToPixel(
-      this.path[this.pathIndex].col,
-      this.path[this.pathIndex].row,
-    );
+    const target = this.path[this.pathIndex];
     return this.stepToward(target.x, target.y, deltaSec, () => {
       this.pathIndex += 1;
     });
@@ -397,6 +423,9 @@ export class Enemy {
 
   private updateBossGlitch(deltaSec: number): void {
     if (this.type !== 'boss') return;
+    // Small procedural rectangles read as "data glitch" around the Zero-Day
+    // polygon, but clash with an illustrated sprite — skip them on art path.
+    if (this.useArtPath) return;
     this.bossGlitchTimerMs += deltaSec * 1000;
     while (this.bossGlitchTimerMs >= BOSS_GLITCH_INTERVAL_MS) {
       this.bossGlitchTimerMs -= BOSS_GLITCH_INTERVAL_MS;
@@ -472,10 +501,7 @@ export class Enemy {
       return { x: -dy / len, y: dx / len };
     }
     if (this.pathIndex >= this.path.length) return { x: 0, y: 0 };
-    const target = this.grid.cellToPixel(
-      this.path[this.pathIndex].col,
-      this.path[this.pathIndex].row,
-    );
+    const target = this.path[this.pathIndex];
     const dx = target.x - this.x;
     const dy = target.y - this.y;
     const len = Math.hypot(dx, dy);
@@ -523,6 +549,18 @@ export class Enemy {
   }
 
   private redrawBody(color: number): void {
+    if (this.useArtPath) {
+      const img = this.body as Phaser.GameObjects.Image;
+      if (color === 0xffffff) {
+        // Hit-flash: solid-white overlay regardless of sprite colors.
+        img.setTintFill(0xffffff);
+      } else if (this.slowRemainingMs > 0) {
+        img.setTint(SLOW_TINT_COLOR);
+      } else {
+        img.clearTint();
+      }
+      return;
+    }
     switch (this.type) {
       case 'fast':
         (this.body as Phaser.GameObjects.Arc).setFillStyle(color);
@@ -678,7 +716,7 @@ export class Enemy {
   }
 
   /** New path (for pathfinding replan between waves). Currently unused — paths are locked per-wave. */
-  setPath(path: CellCoord[]): void {
+  setPath(path: PixelCoord[]): void {
     this.path = path;
     this.pathIndex = 1;
   }

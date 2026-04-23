@@ -114,13 +114,20 @@ export class BottomBar {
       const stats = this.context.getTowerStats(type, 1);
       const inPlacement = state.placementType === type;
       const affordable = state.gold >= stats.cost;
+      const artKey = cfg.art?.bodyKey;
+      const hasArt = !!artKey && this.scene.textures.exists(artKey);
 
+      const cx = x + buttonSize / 2;
+      const cy = y + buttonSize / 2;
+
+      // When art is available, use a dark backdrop so the sprite reads against it;
+      // otherwise the tower's color swatch fills the button.
       const bg = this.scene.add.rectangle(
-        x + buttonSize / 2,
-        y + buttonSize / 2,
+        cx,
+        cy,
         buttonSize,
         buttonSize,
-        cfg.color,
+        hasArt ? 0x141a2a : cfg.color,
         affordable ? 1 : 0.35,
       );
       bg.setStrokeStyle(inPlacement ? 4 : 2, inPlacement ? 0xffff55 : 0xffffff, 0.9);
@@ -132,6 +139,16 @@ export class BottomBar {
           this.controller.onSelectTowerType(type);
         }
       });
+
+      let artImg: Phaser.GameObjects.Image | null = null;
+      if (hasArt && artKey) {
+        artImg = this.scene.add.image(cx, cy, artKey);
+        const source = this.scene.textures.get(artKey).source[0];
+        const fit = buttonSize - 6;
+        const scale = Math.min(fit / source.width, fit / source.height);
+        artImg.setScale(scale);
+        artImg.setAlpha(affordable ? 1 : 0.4);
+      }
 
       const label = this.scene.add
         .text(
@@ -166,6 +183,7 @@ export class BottomBar {
         .setOrigin(0, 0);
 
       this.layer.add([bg, label, costText, statsText]);
+      if (artImg) this.layer.add(artImg);
     });
 
     const lastSlotRight = startX + types.length * slotWidth + (types.length - 1) * slotGap;

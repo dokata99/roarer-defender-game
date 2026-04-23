@@ -19,7 +19,7 @@ export class MainMenuScene extends Phaser.Scene {
     const save = loadSave();
 
     this.add
-      .text(CANVAS_WIDTH / 2, 90, 'Roarer Defense', {
+      .text(CANVAS_WIDTH / 2, 90, 'Roarers Defence', {
         fontSize: '72px',
         color: COLORS.textPrimary,
         fontFamily: 'sans-serif',

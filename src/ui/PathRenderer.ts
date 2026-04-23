@@ -1,50 +1,57 @@
 import Phaser from 'phaser';
 import { CELL_SIZE } from '../config/constants';
-import { PATH_TEXTURE_KEYS, PATH_TILE_DEPTH, type PathTier } from '../config/pathStyle';
-import { GridManager, cellKey, type CellCoord } from '../systems/GridManager';
+import { PATH_TILE_DEPTH, type PathTier } from '../config/pathStyle';
+import type { PixelCoord } from '../systems/GridManager';
+
+/** Tier-specific ribbon colors — mirrors the old per-tile textures. */
+const TIER_COLORS: Record<PathTier, { base: number; top: number; edge: number }> = {
+  normal: { base: 0x2d4a2b, top: 0x4a7841, edge: 0x1c2f1a },
+  elite: { base: 0x2a2d31, top: 0x5d6066, edge: 0x17191c },
+  boss: { base: 0x3a1212, top: 0x7a2424, edge: 0x1a0808 },
+};
+
+/** Ribbon widths — base stroke slightly narrower than a cell, inner highlight narrower still. */
+const BASE_WIDTH = CELL_SIZE - 6;
+const TOP_WIDTH = CELL_SIZE - 22;
 
 export class PathRenderer {
-  private tiles: Phaser.GameObjects.Image[] = [];
+  private graphics: Phaser.GameObjects.Graphics | null = null;
 
-  constructor(
-    private readonly scene: Phaser.Scene,
-    private readonly grid: GridManager,
-  ) {}
+  constructor(private readonly scene: Phaser.Scene) {}
 
-  render(paths: ReadonlyMap<string, CellCoord[]>, tier: PathTier): void {
-    this.clearTiles();
-    this.paintTiles(paths, tier);
+  render(pixelPaths: ReadonlyMap<string, PixelCoord[]>, tier: PathTier): void {
+    this.graphics?.destroy();
+    const g = this.scene.add.graphics().setDepth(PATH_TILE_DEPTH);
+    const colors = TIER_COLORS[tier];
+
+    for (const points of pixelPaths.values()) {
+      if (points.length < 2) continue;
+      this.strokeRibbon(g, points, BASE_WIDTH, colors.edge, 1);
+      this.strokeRibbon(g, points, BASE_WIDTH - 4, colors.base, 1);
+      this.strokeRibbon(g, points, TOP_WIDTH, colors.top, 1);
+    }
+
+    this.graphics = g;
   }
 
   destroy(): void {
-    this.clearTiles();
+    this.graphics?.destroy();
+    this.graphics = null;
   }
 
-  private clearTiles(): void {
-    for (const t of this.tiles) t.destroy();
-    this.tiles = [];
-  }
-
-  private paintTiles(paths: ReadonlyMap<string, CellCoord[]>, tier: PathTier): void {
-    const textureKey = PATH_TEXTURE_KEYS[tier];
-    const painted = new Set<string>();
-
-    for (const path of paths.values()) {
-      for (const cell of path) {
-        if (this.grid.isPortalCell(cell.col, cell.row)) continue;
-        if (this.grid.isCastleCell(cell.col, cell.row)) continue;
-        const key = cellKey(cell.col, cell.row);
-        if (painted.has(key)) continue;
-        painted.add(key);
-
-        const topLeft = this.grid.cellToTopLeft(cell.col, cell.row);
-        const img = this.scene.add
-          .image(topLeft.x, topLeft.y, textureKey)
-          .setOrigin(0, 0)
-          .setDisplaySize(CELL_SIZE, CELL_SIZE)
-          .setDepth(PATH_TILE_DEPTH);
-        this.tiles.push(img);
-      }
+  private strokeRibbon(
+    g: Phaser.GameObjects.Graphics,
+    points: PixelCoord[],
+    thickness: number,
+    color: number,
+    alpha: number,
+  ): void {
+    g.lineStyle(thickness, color, alpha);
+    g.beginPath();
+    g.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+      g.lineTo(points[i].x, points[i].y);
     }
+    g.strokePath();
   }
 }

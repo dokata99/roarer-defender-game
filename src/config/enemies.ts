@@ -1,5 +1,16 @@
 export type EnemyType = 'fast' | 'elite' | 'boss' | 'flying';
 
+export const ENEMY_ART_KEYS = {
+  fast: 'enemy-bug',
+  elite: 'enemy-ogre',
+  flying: 'enemy-dragon',
+  boss: 'enemy-scope-creep',
+} as const;
+
+export interface EnemyArt {
+  bodyKey: string;
+}
+
 export interface EnemyTypeConfig {
   displayName: string;
   speedTilesPerSec: number;
@@ -16,6 +27,8 @@ export interface EnemyTypeConfig {
    * See specs/01-game-design/01-11-frost-tower-design.md.
    */
   slowResistance: number;
+  /** Optional sprite art. Falls back to procedural drawing when texture isn't loaded. */
+  art?: EnemyArt;
 }
 
 export const ENEMY_CONFIGS: Record<EnemyType, EnemyTypeConfig> = {
@@ -28,6 +41,7 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyTypeConfig> = {
     radius: 10,
     pulses: false,
     slowResistance: 0,
+    art: { bodyKey: ENEMY_ART_KEYS.fast },
   },
   elite: {
     displayName: 'Trojan',
@@ -38,6 +52,7 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyTypeConfig> = {
     radius: 16,
     pulses: false,
     slowResistance: 0,
+    art: { bodyKey: ENEMY_ART_KEYS.elite },
   },
   boss: {
     displayName: 'Zero-Day',
@@ -48,6 +63,7 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyTypeConfig> = {
     radius: 26,
     pulses: true,
     slowResistance: 0.5,
+    art: { bodyKey: ENEMY_ART_KEYS.boss },
   },
   flying: {
     displayName: 'Packet',
@@ -59,5 +75,6 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyTypeConfig> = {
     pulses: false,
     flying: true,
     slowResistance: 0.5,
+    art: { bodyKey: ENEMY_ART_KEYS.flying },
   },
 };
