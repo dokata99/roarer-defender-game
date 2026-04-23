@@ -37,8 +37,10 @@ export class Enemy {
   readonly goldOnKill: number;
   readonly livesLostOnReach: number;
   readonly speedPxPerSec: number;
+  readonly isFlying: boolean;
 
   private circle: Phaser.GameObjects.Arc;
+  private shadow: Phaser.GameObjects.Ellipse | null = null;
   private hpBarBg: Phaser.GameObjects.Rectangle;
   private hpBarFill: Phaser.GameObjects.Rectangle;
   private pulseTween: Phaser.Tweens.Tween | null = null;
@@ -64,6 +66,7 @@ export class Enemy {
     this.goldOnKill = spec.goldOnKill;
     this.livesLostOnReach = cfg.livesLostOnReach;
     this.speedPxPerSec = spec.speedTilesPerSec * CELL_SIZE;
+    this.isFlying = cfg.flying === true;
     this.path = path;
 
     const spawn = grid.cellToPixel(path[0].col, path[0].row);
@@ -71,9 +74,16 @@ export class Enemy {
     this.y = spawn.y;
     this.pathIndex = 1;
 
+    const depth = this.isFlying ? ENEMY_DEPTH + 5 : ENEMY_DEPTH;
+
+    if (this.isFlying) {
+      this.shadow = scene.add.ellipse(this.x, this.y + 10, cfg.radius * 1.4, cfg.radius * 0.5, 0x000000, 0.35);
+      this.shadow.setDepth(ENEMY_DEPTH - 1);
+    }
+
     this.circle = scene.add.circle(this.x, this.y, cfg.radius, cfg.color);
-    this.circle.setStrokeStyle(2, 0x000000, 0.6);
-    this.circle.setDepth(ENEMY_DEPTH);
+    this.circle.setStrokeStyle(2, this.isFlying ? 0x66ffff : 0x000000, this.isFlying ? 0.9 : 0.6);
+    this.circle.setDepth(depth);
 
     const barWidth = cfg.radius * 2 + 4;
     const barHeight = 4;
@@ -135,6 +145,9 @@ export class Enemy {
     this.hpBarFill.setPosition(this.x - barWidth / 2, barY);
     const ratio = Math.max(0, this.hp / this.maxHp);
     this.hpBarFill.setScale(ratio, 1);
+    if (this.shadow) {
+      this.shadow.setPosition(this.x, this.y + 10);
+    }
   }
 
   takeDamage(amount: number): boolean {
@@ -168,6 +181,7 @@ export class Enemy {
     this.circle.destroy();
     this.hpBarBg.destroy();
     this.hpBarFill.destroy();
+    if (this.shadow) this.shadow.destroy();
     if (this.pulseTween) this.pulseTween.stop();
     if (this.hitFlashTween) this.hitFlashTween.stop();
   }

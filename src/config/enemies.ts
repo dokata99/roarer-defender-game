@@ -1,4 +1,4 @@
-export type EnemyType = 'fast' | 'elite' | 'boss';
+export type EnemyType = 'fast' | 'elite' | 'boss' | 'flying';
 
 export interface EnemyTypeConfig {
   displayName: string;
@@ -8,6 +8,8 @@ export interface EnemyTypeConfig {
   color: number;
   radius: number;
   pulses: boolean;
+  /** Flying enemies bypass the grid path and are only targetable by snipers. */
+  flying?: boolean;
 }
 
 export const ENEMY_CONFIGS: Record<EnemyType, EnemyTypeConfig> = {
@@ -37,5 +39,15 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyTypeConfig> = {
     color: 0xff3333,
     radius: 26,
     pulses: true,
+  },
+  flying: {
+    displayName: 'Packet',
+    speedTilesPerSec: 2,
+    goldOnKill: 5,
+    livesLostOnReach: 5,
+    color: 0xff33ff,
+    radius: 11,
+    pulses: false,
+    flying: true,
   },
 };

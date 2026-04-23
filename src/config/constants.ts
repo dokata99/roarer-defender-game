@@ -41,15 +41,7 @@ export const SCENE_KEYS = {
   CREDITS: 'CreditsScene',
 } as const;
 
-export const PORTAL_CELLS: readonly CellCoord[] = [
-  { col: 0, row: 2 },
-  { col: 0, row: 3 },
-  { col: 0, row: 4 },
-];
+export const PORTAL_CELLS: readonly CellCoord[] = [{ col: 0, row: 3 }];
 
-export const CASTLE_CELLS: readonly CellCoord[] = [
-  { col: GRID_COLS - 1, row: 2 },
-  { col: GRID_COLS - 1, row: 3 },
-  { col: GRID_COLS - 1, row: 4 },
-];
+export const CASTLE_CELLS: readonly CellCoord[] = [{ col: GRID_COLS - 1, row: 3 }];
 

@@ -17,7 +17,12 @@ import { registerPathTextures } from '../ui/PathTextures';
 import { PathRenderer } from '../ui/PathRenderer';
 import { PLACEMENT_HIGHLIGHT_DEPTH, RANGE_INDICATOR_DEPTH } from '../config/gameplay';
 import { TOWER_CONFIGS, type TowerType } from '../config/towers';
-import { getCampaignWaveConfig, TOTAL_CAMPAIGN_WAVES, type WaveConfig } from '../config/waves';
+import {
+  getCampaignWaveConfig,
+  TOTAL_CAMPAIGN_WAVES,
+  ENDLESS_WARMUP_WAVES,
+  type WaveConfig,
+} from '../config/waves';
 import { buildEndlessWave } from '../config/endless';
 import { GridManager, cellKey, type CellCoord } from '../systems/GridManager';
 import { PathfindingManager } from '../systems/PathfindingManager';
@@ -349,8 +354,10 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     if (this.mode === 'campaign') {
       return getCampaignWaveConfig(waveNumber);
     }
-    // Endless mode: waves 1-10 use the campaign config as baseline, then scaling from 11+.
-    if (waveNumber <= TOTAL_CAMPAIGN_WAVES) return getCampaignWaveConfig(waveNumber);
+    // Endless mode: first ENDLESS_WARMUP_WAVES reuse the campaign arc-1/arc-2 pacing as
+    // a warmup, then the endless scaling formulas take over. Campaign can grow past this
+    // without changing the endless difficulty curve.
+    if (waveNumber <= ENDLESS_WARMUP_WAVES) return getCampaignWaveConfig(waveNumber);
     return buildEndlessWave(waveNumber);
   }
 
@@ -429,7 +436,10 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     // Spawn enemies per wave timer
     const spawns = this.waveManager.tick(deltaMs);
     for (const spawn of spawns) {
-      const path = this.cachedPaths.get(cellKey(spawn.portal.col, spawn.portal.row));
+      const path =
+        spawn.spec.type === 'flying'
+          ? this.buildFlyingPath(spawn.portal)
+          : this.cachedPaths.get(cellKey(spawn.portal.col, spawn.portal.row));
       if (!path) continue;
       const enemy = new Enemy(this, this.grid, spawn.spec, path);
       this.enemies.push(enemy);
@@ -473,7 +483,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
 
       const center = tower.getCenter();
       const rangePx = tower.getRangePx();
-      const target = this.findClosestEnemyInRange(center.x, center.y, rangePx);
+      const target = this.findClosestEnemyInRange(center.x, center.y, rangePx, tower.type);
       if (!target) continue;
 
       tower.lastFireAt = time;
@@ -504,11 +514,17 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     }
   }
 
-  private findClosestEnemyInRange(x: number, y: number, range: number): Enemy | null {
+  private findClosestEnemyInRange(
+    x: number,
+    y: number,
+    range: number,
+    towerType: TowerType,
+  ): Enemy | null {
     let best: Enemy | null = null;
     let bestDistSq = range * range;
     for (const enemy of this.enemies) {
       if (!enemy.alive) continue;
+      if (towerType === 'splash' && enemy.isFlying) continue;
       const dx = enemy.x - x;
       const dy = enemy.y - y;
       const d2 = dx * dx + dy * dy;
@@ -553,6 +569,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     const r2 = radius * radius;
     for (const enemy of this.enemies) {
       if (!enemy.alive) continue;
+      if (enemy.isFlying) continue;
       const dx = enemy.x - x;
       const dy = enemy.y - y;
       if (dx * dx + dy * dy <= r2) {
@@ -618,7 +635,9 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.waveManager.finish();
 
     const wavesCleared =
-      outcome === 'victory' ? TOTAL_CAMPAIGN_WAVES : Math.max(0, this.waveIndex - 1);
+      outcome === 'victory' && this.mode === 'campaign'
+        ? TOTAL_CAMPAIGN_WAVES
+        : Math.max(0, this.waveIndex - 1);
     const roarerPointsEarned = wavesCleared;
 
     const save = loadSave();
@@ -662,6 +681,22 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
 
   private async recalculatePaths(): Promise<void> {
     this.cachedPaths = await this.pathfinder.recalculatePaths(this.grid.getOccupiedCells());
+  }
+
+  /** Straight-line path for flying enemies: [portal, nearest castle cell]. Bypasses A*. */
+  private buildFlyingPath(portal: CellCoord): CellCoord[] {
+    let nearest = CASTLE_CELLS[0];
+    let bestDistSq = Infinity;
+    for (const castle of CASTLE_CELLS) {
+      const dx = castle.col - portal.col;
+      const dy = castle.row - portal.row;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestDistSq) {
+        bestDistSq = d2;
+        nearest = castle;
+      }
+    }
+    return [{ col: portal.col, row: portal.row }, { col: nearest.col, row: nearest.row }];
   }
 
   private renderBottomBar(): void {
@@ -754,27 +789,25 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
       }
     }
 
-    for (let row = 2; row <= 4; row++) {
-      const portalCenter = this.grid.cellToPixel(0, row);
-      this.add
-        .text(portalCenter.x, portalCenter.y, 'WWW', {
-          fontSize: '14px',
-          color: COLORS.textPrimary,
-          fontFamily: 'sans-serif',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5);
+    const portalCenter = this.grid.cellToPixel(0, 3);
+    this.add
+      .text(portalCenter.x, portalCenter.y, 'WWW', {
+        fontSize: '14px',
+        color: COLORS.textPrimary,
+        fontFamily: 'sans-serif',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5);
 
-      const castleCenter = this.grid.cellToPixel(GRID_COLS - 1, row);
-      this.add
-        .text(castleCenter.x, castleCenter.y, 'SRV', {
-          fontSize: '14px',
-          color: COLORS.textPrimary,
-          fontFamily: 'sans-serif',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5);
-    }
+    const castleCenter = this.grid.cellToPixel(GRID_COLS - 1, 3);
+    this.add
+      .text(castleCenter.x, castleCenter.y, 'SRV', {
+        fontSize: '14px',
+        color: COLORS.textPrimary,
+        fontFamily: 'sans-serif',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5);
   }
 
   private drawGridLines() {
@@ -799,8 +832,8 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
   private drawPortalArt() {
     const pad = 20;
     const width = GRID_OFFSET_X - pad * 2;
-    const topLeft = this.grid.cellToTopLeft(0, 2);
-    const height = 3 * CELL_SIZE;
+    const topLeft = this.grid.cellToTopLeft(0, 3);
+    const height = CELL_SIZE;
 
     const g = this.add.graphics();
     g.fillStyle(COLORS.portal, 1);
@@ -810,7 +843,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
 
     this.add
       .text(pad + width / 2, topLeft.y + height / 2, 'WWW\nPORTAL', {
-        fontSize: '28px',
+        fontSize: '18px',
         color: COLORS.textPrimary,
         fontFamily: 'sans-serif',
         fontStyle: 'bold',
@@ -824,8 +857,8 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     const width = GRID_OFFSET_X - pad * 2;
     const gridRight = GRID_OFFSET_X + GRID_COLS * CELL_SIZE;
     const x = gridRight + pad;
-    const topLeft = this.grid.cellToTopLeft(GRID_COLS - 1, 2);
-    const height = 3 * CELL_SIZE;
+    const topLeft = this.grid.cellToTopLeft(GRID_COLS - 1, 3);
+    const height = CELL_SIZE;
 
     const g = this.add.graphics();
     g.fillStyle(COLORS.castle, 1);
@@ -835,7 +868,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
 
     this.add
       .text(x + width / 2, topLeft.y + height / 2, 'SERVER\n(castle)', {
-        fontSize: '24px',
+        fontSize: '16px',
         color: COLORS.textPrimary,
         fontFamily: 'sans-serif',
         fontStyle: 'bold',

@@ -10,7 +10,7 @@ export interface PendingSpawn {
 
 /**
  * Schedules enemy spawns across a single wave. Walks through the ordered spawns array
- * at the configured interval, cycling portal rows 2 → 3 → 4 deterministically.
+ * at the configured interval, cycling through PORTAL_CELLS deterministically.
  */
 export class WaveManager {
   private active = false;

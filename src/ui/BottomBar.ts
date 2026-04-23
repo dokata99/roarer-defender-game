@@ -64,12 +64,15 @@ export class BottomBar {
   private renderTowerPicker(state: BottomBarViewState): void {
     const types: TowerType[] = ['splash', 'sniper'];
     const startX = 40;
-    const buttonSize = 96;
-    const gap = 20;
+    const buttonSize = 88;
+    const statsWidth = 150;
+    const statsGap = 10;
+    const slotGap = 24;
+    const slotWidth = buttonSize + statsGap + statsWidth;
 
     types.forEach((type, i) => {
-      const x = startX + i * (buttonSize + gap);
-      const y = this.barY + 20;
+      const x = startX + i * (slotWidth + slotGap);
+      const y = this.barY + 16;
       const cfg = TOWER_CONFIGS[type];
       const stats = this.context.getTowerStats(type, 1);
       const inPlacement = state.placementType === type;
@@ -116,21 +119,23 @@ export class BottomBar {
         .setOrigin(0.5, 0);
 
       const statsText = this.scene.add
-        .text(x + buttonSize + 12, y, this.towerStatsSummary(type), {
+        .text(x + buttonSize + statsGap, y, this.towerStatsSummary(type), {
           fontSize: '12px',
           color: COLORS.textMuted,
           fontFamily: 'sans-serif',
           lineSpacing: 2,
+          wordWrap: { width: statsWidth, useAdvancedWrap: true },
         })
         .setOrigin(0, 0);
 
       this.layer.add([bg, label, costText, statsText]);
     });
 
+    const lastSlotRight = startX + types.length * slotWidth + (types.length - 1) * slotGap;
     const hint = this.scene.add
       .text(
-        startX,
-        this.barY + BOTTOM_BAR_HEIGHT - 18,
+        lastSlotRight + 16,
+        this.barY + BOTTOM_BAR_HEIGHT - 6,
         'Left-click grid to place · Right-click / ESC to cancel',
         {
           fontSize: '12px',
