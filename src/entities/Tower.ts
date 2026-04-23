@@ -76,7 +76,8 @@ export class Tower {
       // Aspect-preserving fit: square bears stay square; portrait/landscape
       // bears shrink along the long axis to fit inside the cell.
       const source = scene.textures.get(artKey).source[0];
-      const scale = Math.min(TOWER_ART_SIZE / source.width, TOWER_ART_SIZE / source.height);
+      const fitScale = Math.min(TOWER_ART_SIZE / source.width, TOWER_ART_SIZE / source.height);
+      const scale = fitScale * (TOWER_CONFIGS[type].art?.bodyScaleMultiplier ?? 1);
       img.setScale(scale);
       this.baseBodyScale = scale;
       this.body = img;

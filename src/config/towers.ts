@@ -22,6 +22,9 @@ export interface TowerLevelStats {
 export interface TowerArt {
   bodyKey: string;
   projectileKey?: string;
+  /** Multiplier applied on top of the aspect-fit scale. Use to compensate for
+   *  source PNGs that have extra transparent padding around the character. */
+  bodyScaleMultiplier?: number;
 }
 
 export interface TowerTypeConfig {
@@ -40,6 +43,7 @@ export const TOWER_CONFIGS: Record<TowerType, TowerTypeConfig> = {
     art: {
       bodyKey: TOWER_ART_KEYS.splashBody,
       projectileKey: TOWER_ART_KEYS.splashProjectile,
+      bodyScaleMultiplier: 1.2,
     },
     levels: [
       { cost: 10, damage: 5, attackIntervalMs: 830, rangeTiles: 2.5, splashRadiusTiles: 1.0 },

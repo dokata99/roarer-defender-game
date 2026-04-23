@@ -185,7 +185,7 @@ export class Enemy {
       const img = this.scene.add.image(this.x, this.y, cfg.art!.bodyKey);
       // Sprite footprint is a bit larger than the logical hitbox radius so
       // the artwork reads clearly while combat math still uses `radius`.
-      const size = this.radius * 2.4;
+      const size = this.radius * 3.12;
       img.setDisplaySize(size, size);
       this.baseBodyScale = img.scaleX;
       img.setDepth(depth);

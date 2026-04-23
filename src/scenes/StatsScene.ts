@@ -20,17 +20,18 @@ export class StatsScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    const campaignBest = save.stats.bestWaveReached > 0 ? String(save.stats.bestWaveReached) : '—';
+    const endlessBest = save.stats.endlessBestWave > 0 ? String(save.stats.endlessBestWave) : '—';
+    const bestWaveValue = `Campaign: ${campaignBest} • Endless: ${endlessBest}`;
+
     const rows: Array<[string, string]> = [
-      ['Total runs played', String(save.stats.totalRuns)],
-      ['Total waves cleared', String(save.stats.totalWavesCleared)],
-      ['Total enemies killed', String(save.stats.totalEnemiesKilled)],
-      ['Best wave reached (campaign)', String(save.stats.bestWaveReached)],
-      ['Best wave reached (endless)', String(save.stats.endlessBestWave)],
-      ['Roarer Points (current)', String(save.roarerPoints)],
-      ['Endless Mode', save.endlessModeUnlocked ? 'Unlocked' : 'Locked'],
+      ['Best Wave Reached', bestWaveValue],
+      ['Total Runs', String(save.stats.totalRuns)],
+      ['Total Waves Cleared', String(save.stats.totalWavesCleared)],
+      ['Total Enemies Killed', String(save.stats.totalEnemiesKilled)],
     ];
 
-    const startY = 180;
+    const startY = 240;
     const rowH = 44;
     const labelX = CANVAS_WIDTH / 2 - 260;
     const valueX = CANVAS_WIDTH / 2 + 260;

@@ -125,6 +125,8 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.load.image(ENEMY_ART_KEYS.elite, 'assets/enemies/Ogre.png');
     this.load.image(ENEMY_ART_KEYS.flying, 'assets/enemies/Dragon.png');
     this.load.image(ENEMY_ART_KEYS.boss, 'assets/enemies/Scope_Creep_Boss.png');
+    this.load.image('env-portal', 'assets/environment/Portal.png');
+    this.load.image('env-base', 'assets/environment/server-healthy.png');
   }
 
   async create() {
@@ -234,8 +236,6 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
   private applyCameraFX(): void {
     const cam = this.cameras.main;
     if (this.game.renderer.type !== Phaser.WEBGL) return;
-    // Light bloom — just enough to kiss the neon accents. Anything heavier fuzzes the text.
-    cam.postFX.addBloom(0xffffff, 1, 1, 1, 0.35, 4);
     // Low-security danger vignette only. Parked at strength 0; tweens in when security < 30%.
     // No baseline vignette — the one in earlier builds crushed the corners too hard.
     this.dangerVignette = cam.postFX.addVignette(0.5, 0.5, 0.85, 0);
@@ -1088,104 +1088,33 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     }
   }
 
-  /** Portal slot on the left edge. 02-03 §4.3 — deep purple core, magenta edge glow, scan line. */
+  /** Portal slot on the left edge — Portal.png scaled to fit, preserving aspect ratio. */
   private drawPortalArt() {
     const pad = 20;
     const width = GRID_OFFSET_X - pad * 2;
     const topLeft = this.grid.cellToTopLeft(0, 3);
     const height = CELL_SIZE;
-    const x = pad;
-    const y = topLeft.y;
+    const cx = pad + width / 2;
+    const cy = topLeft.y + height / 2;
 
-    const g = this.add.graphics();
-    // Deep-purple body
-    g.fillStyle(COLORS.portal, 0.85);
-    g.fillRoundedRect(x, y, width, height, 8);
-    // Magenta edge — a second stroke layer for a neon feel
-    g.lineStyle(3, COLORS.portalEdge, 1);
-    g.strokeRoundedRect(x, y, width, height, 8);
-
-    // Pulsing inner glow (separate graphic so we can tween alpha without redrawing)
-    const glow = this.add.graphics();
-    glow.lineStyle(2, COLORS.portalEdge, 1);
-    glow.strokeRoundedRect(x - 2, y - 2, width + 4, height + 4, 10);
-    this.tweens.add({
-      targets: glow,
-      alpha: { from: 0.2, to: 0.8 },
-      duration: 2000,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.InOut',
-    });
-
-    // "WWW" label in cyan
-    this.add
-      .text(x + width / 2, y + height / 2, 'WWW', {
-        fontSize: '20px',
-        color: '#00e5ff',
-        fontFamily: 'monospace',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
-
-    // Horizontal scan line — sweeps top-to-bottom inside the portal frame
-    const scan = this.add.rectangle(x + width / 2, y, width - 8, 2, 0x00e5ff, 0.65);
-    this.tweens.add({
-      targets: scan,
-      y: { from: y + 4, to: y + height - 4 },
-      duration: 2000,
-      repeat: -1,
-      ease: 'Linear',
-    });
+    const img = this.add.image(cx, cy, 'env-portal');
+    const scale = Math.min(width / img.width, height / img.height) * 2;
+    img.setScale(scale);
   }
 
-  /** Server rack on the right. 02-03 §4.4 — cyan outline, bay dividers, blinking LEDs. */
+  /** Server rack on the right — server-healthy.png scaled to fit, preserving aspect ratio. */
   private drawCastleArt() {
     const pad = 20;
     const width = GRID_OFFSET_X - pad * 2;
     const gridRight = GRID_OFFSET_X + GRID_COLS * CELL_SIZE;
-    const x = gridRight + pad;
     const topLeft = this.grid.cellToTopLeft(GRID_COLS - 1, 3);
     const height = CELL_SIZE;
-    const y = topLeft.y;
+    const cx = gridRight + pad + width / 2;
+    const cy = topLeft.y + height / 2;
 
-    const g = this.add.graphics();
-    g.fillStyle(COLORS.gridCell, 1);
-    g.fillRect(x, y, width, height);
-    g.lineStyle(2, COLORS.castle, 1);
-    g.strokeRect(x, y, width, height);
-
-    // Bay dividers (3 horizontal lines at 25/50/75%)
-    g.lineStyle(1, COLORS.gridBorder, 1);
-    for (let i = 1; i <= 3; i++) {
-      const by = y + (height * i) / 4;
-      g.lineBetween(x + 6, by, x + width - 6, by);
-    }
-
-    // Status LEDs on the left of each bay
-    const ledColor = 0x00ff6a;
-    for (let i = 0; i < 4; i++) {
-      const ly = y + (height * (i + 0.5)) / 4;
-      const led = this.add.circle(x + 8, ly, 2, ledColor, 1);
-      // Stagger the blinks — different phases per LED.
-      this.tweens.add({
-        targets: led,
-        alpha: { from: 1, to: 0.3 },
-        duration: 500 + i * 220,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.InOut',
-      });
-    }
-
-    this.add
-      .text(x + width / 2, y + height / 2, 'SERVER', {
-        fontSize: '14px',
-        color: '#00e5ff',
-        fontFamily: 'monospace',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
+    const img = this.add.image(cx, cy, 'env-base');
+    const scale = Math.min(width / img.width, height / img.height) * 2;
+    img.setScale(scale);
   }
 
   private addBackButton() {

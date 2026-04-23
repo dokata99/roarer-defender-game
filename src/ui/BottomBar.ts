@@ -145,7 +145,8 @@ export class BottomBar {
         artImg = this.scene.add.image(cx, cy, artKey);
         const source = this.scene.textures.get(artKey).source[0];
         const fit = buttonSize - 6;
-        const scale = Math.min(fit / source.width, fit / source.height);
+        const fitScale = Math.min(fit / source.width, fit / source.height);
+        const scale = fitScale * (cfg.art?.bodyScaleMultiplier ?? 1);
         artImg.setScale(scale);
         artImg.setAlpha(affordable ? 1 : 0.4);
       }
