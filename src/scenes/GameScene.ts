@@ -763,27 +763,25 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
       }
     }
 
-    for (let row = 2; row <= 4; row++) {
-      const portalCenter = this.grid.cellToPixel(0, row);
-      this.add
-        .text(portalCenter.x, portalCenter.y, 'WWW', {
-          fontSize: '14px',
-          color: COLORS.textPrimary,
-          fontFamily: 'sans-serif',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5);
+    const portalCenter = this.grid.cellToPixel(0, 3);
+    this.add
+      .text(portalCenter.x, portalCenter.y, 'WWW', {
+        fontSize: '14px',
+        color: COLORS.textPrimary,
+        fontFamily: 'sans-serif',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5);
 
-      const castleCenter = this.grid.cellToPixel(GRID_COLS - 1, row);
-      this.add
-        .text(castleCenter.x, castleCenter.y, 'SRV', {
-          fontSize: '14px',
-          color: COLORS.textPrimary,
-          fontFamily: 'sans-serif',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5);
-    }
+    const castleCenter = this.grid.cellToPixel(GRID_COLS - 1, 3);
+    this.add
+      .text(castleCenter.x, castleCenter.y, 'SRV', {
+        fontSize: '14px',
+        color: COLORS.textPrimary,
+        fontFamily: 'sans-serif',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5);
   }
 
   private drawGridLines() {
@@ -808,8 +806,8 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
   private drawPortalArt() {
     const pad = 20;
     const width = GRID_OFFSET_X - pad * 2;
-    const topLeft = this.grid.cellToTopLeft(0, 2);
-    const height = 3 * CELL_SIZE;
+    const topLeft = this.grid.cellToTopLeft(0, 3);
+    const height = CELL_SIZE;
 
     const g = this.add.graphics();
     g.fillStyle(COLORS.portal, 1);
@@ -819,7 +817,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
 
     this.add
       .text(pad + width / 2, topLeft.y + height / 2, 'WWW\nPORTAL', {
-        fontSize: '28px',
+        fontSize: '18px',
         color: COLORS.textPrimary,
         fontFamily: 'sans-serif',
         fontStyle: 'bold',
@@ -833,8 +831,8 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     const width = GRID_OFFSET_X - pad * 2;
     const gridRight = GRID_OFFSET_X + GRID_COLS * CELL_SIZE;
     const x = gridRight + pad;
-    const topLeft = this.grid.cellToTopLeft(GRID_COLS - 1, 2);
-    const height = 3 * CELL_SIZE;
+    const topLeft = this.grid.cellToTopLeft(GRID_COLS - 1, 3);
+    const height = CELL_SIZE;
 
     const g = this.add.graphics();
     g.fillStyle(COLORS.castle, 1);
@@ -844,7 +842,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
 
     this.add
       .text(x + width / 2, topLeft.y + height / 2, 'SERVER\n(castle)', {
-        fontSize: '24px',
+        fontSize: '16px',
         color: COLORS.textPrimary,
         fontFamily: 'sans-serif',
         fontStyle: 'bold',

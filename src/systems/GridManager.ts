@@ -48,8 +48,8 @@ export class GridManager {
     if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) {
       return 'out-of-bounds';
     }
-    if (col === 0 && row >= 2 && row <= 4) return 'portal';
-    if (col === GRID_COLS - 1 && row >= 2 && row <= 4) return 'castle';
+    if (col === 0 && row === 3) return 'portal';
+    if (col === GRID_COLS - 1 && row === 3) return 'castle';
     return 'buildable';
   }
 
