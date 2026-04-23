@@ -94,6 +94,14 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.mode = data?.mode ?? 'campaign';
   }
 
+  preload() {
+    // Path-tile image assets. If a file is missing, Phaser logs a 404 and
+    // registerPathTextures() draws a procedural fallback — safe either way.
+    this.load.image('path-tile-grass', 'assets/path-tiles/grass.png');
+    this.load.image('path-tile-cobble', 'assets/path-tiles/cobble.png');
+    this.load.image('path-tile-brick', 'assets/path-tiles/brick.png');
+  }
+
   async create() {
     this.resetState();
     this.cameras.main.setBackgroundColor(COLORS.background);
