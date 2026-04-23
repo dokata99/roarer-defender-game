@@ -26,7 +26,7 @@ This slice exists so that every subsequent slice (combat, campaign waves, meta-p
 - GameOverScene overlay reachable from GameScene via a dev-only debug button (temporary — removed in Slice 2 when real defeat triggers exist)
 - Shop/Stats/Credits scenes as "Under Construction" stubs with a back button
 - Vercel-ready static build (`vite build` → `dist/`) and `vercel.json`
-- Minimal ESLint + Prettier config
+- Prettier config (formatting only; linting deferred to keep this slice tight)
 - README with dev, build, and deploy instructions
 
 ### Out of scope (deferred to later slices)
@@ -47,7 +47,7 @@ This slice exists so that every subsequent slice (combat, campaign waves, meta-p
 | Language | TypeScript, `strict: true` |
 | Game engine | Phaser 3 |
 | Pathfinding | `easystarjs` (installed, unused this slice) |
-| Lint/format | ESLint + Prettier, defaults only |
+| Format | Prettier, defaults only (ESLint deferred) |
 | Deploy | Vercel static deploy from `dist/` |
 | Node | 20+ |
 
@@ -121,7 +121,6 @@ roarer-defender-game/
   tsconfig.json
   vite.config.ts
   vercel.json
-  .eslintrc.cjs
   .prettierrc
   README.md
   src/
