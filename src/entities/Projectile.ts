@@ -24,7 +24,7 @@ export abstract class Projectile {
   y: number;
   readonly damage: number;
   done = false;
-  protected circle: Phaser.GameObjects.Arc;
+  protected body: Phaser.GameObjects.Arc | Phaser.GameObjects.Image;
   protected trailColor: number;
   protected msSinceLastTrail = 0;
 
@@ -40,7 +40,7 @@ export abstract class Projectile {
     this.y = y;
     this.damage = damage;
     this.trailColor = color;
-    this.circle = scene.add.circle(x, y, radius, color).setDepth(PROJECTILE_DEPTH);
+    this.body = scene.add.circle(x, y, radius, color).setDepth(PROJECTILE_DEPTH);
   }
 
   /** Returns a ProjectileHit if it should apply damage this frame, otherwise null. */
@@ -64,12 +64,16 @@ export abstract class Projectile {
   }
 
   destroy(): void {
-    this.circle.destroy();
+    this.body.destroy();
   }
 }
 
+/** Display length of the sprite-backed sniper projectile along the travel axis. */
+const SNIPER_SPRITE_LENGTH = 52;
+
 export class SniperProjectile extends Projectile {
   private target: Enemy;
+  private usesSprite = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -78,9 +82,23 @@ export class SniperProjectile extends Projectile {
     damage: number,
     target: Enemy,
     color: number,
+    opts?: { textureKey?: string },
   ) {
     super(scene, color, 5, x, y, damage);
     this.target = target;
+
+    const key = opts?.textureKey;
+    if (key && scene.textures.exists(key)) {
+      this.body.destroy();
+      const img = scene.add.image(x, y, key).setDepth(PROJECTILE_DEPTH);
+      // Fit the sprite to SNIPER_SPRITE_LENGTH along its longer axis, preserving aspect.
+      const source = scene.textures.get(key).source[0];
+      const longEdge = Math.max(source.width, source.height);
+      img.setScale(SNIPER_SPRITE_LENGTH / longEdge);
+      img.setRotation(Math.atan2(target.y - y, target.x - x));
+      this.body = img;
+      this.usesSprite = true;
+    }
   }
 
   update(deltaSec: number): ProjectileHit | null {
@@ -96,7 +114,7 @@ export class SniperProjectile extends Projectile {
     if (step >= dist) {
       this.x = this.target.x;
       this.y = this.target.y;
-      this.circle.setPosition(this.x, this.y);
+      this.body.setPosition(this.x, this.y);
       this.done = true;
       return {
         damage: this.damage,
@@ -106,11 +124,20 @@ export class SniperProjectile extends Projectile {
     }
     this.x += (dx / dist) * step;
     this.y += (dy / dist) * step;
-    this.circle.setPosition(this.x, this.y);
-    this.emitTrail(deltaSec, 3);
+    this.body.setPosition(this.x, this.y);
+
+    if (this.usesSprite) {
+      // Homing target moves each frame — keep the arrow pointing at it.
+      (this.body as Phaser.GameObjects.Image).setRotation(Math.atan2(dy, dx));
+    } else {
+      this.emitTrail(deltaSec, 3);
+    }
     return null;
   }
 }
+
+/** Visible size for sprite-backed splash projectiles. */
+const SPLASH_SPRITE_SIZE = 28;
 
 export class SplashProjectile extends Projectile {
   private targetX: number;
@@ -118,6 +145,7 @@ export class SplashProjectile extends Projectile {
   private splashRadiusTiles: number;
   private slow: ProjectileSlowPayload | undefined;
   private canHitFlying: boolean;
+  private usesSprite = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -128,7 +156,7 @@ export class SplashProjectile extends Projectile {
     targetY: number,
     splashRadiusTiles: number,
     color: number,
-    opts?: { slow?: ProjectileSlowPayload; canHitFlying?: boolean },
+    opts?: { slow?: ProjectileSlowPayload; canHitFlying?: boolean; textureKey?: string },
   ) {
     super(scene, color, 6, x, y, damage);
     this.targetX = targetX;
@@ -136,6 +164,16 @@ export class SplashProjectile extends Projectile {
     this.splashRadiusTiles = splashRadiusTiles;
     this.slow = opts?.slow;
     this.canHitFlying = opts?.canHitFlying ?? false;
+
+    const key = opts?.textureKey;
+    if (key && scene.textures.exists(key)) {
+      this.body.destroy();
+      const img = scene.add.image(x, y, key).setDepth(PROJECTILE_DEPTH);
+      img.setDisplaySize(SPLASH_SPRITE_SIZE, SPLASH_SPRITE_SIZE);
+      img.setRotation(Math.atan2(targetY - y, targetX - x));
+      this.body = img;
+      this.usesSprite = true;
+    }
   }
 
   update(deltaSec: number): ProjectileHit | null {
@@ -147,7 +185,7 @@ export class SplashProjectile extends Projectile {
     if (step >= dist) {
       this.x = this.targetX;
       this.y = this.targetY;
-      this.circle.setPosition(this.x, this.y);
+      this.body.setPosition(this.x, this.y);
       this.done = true;
       return {
         damage: this.damage,
@@ -159,8 +197,15 @@ export class SplashProjectile extends Projectile {
     }
     this.x += (dx / dist) * step;
     this.y += (dy / dist) * step;
-    this.circle.setPosition(this.x, this.y);
-    this.emitTrail(deltaSec, 4);
+    this.body.setPosition(this.x, this.y);
+
+    if (this.usesSprite) {
+      // Rotate so the sprite's built-in motion-blur streak trails behind travel direction.
+      (this.body as Phaser.GameObjects.Image).setRotation(Math.atan2(dy, dx));
+    } else {
+      // Circle fallback has no built-in trail — drop fading dots.
+      this.emitTrail(deltaSec, 4);
+    }
     return null;
   }
 

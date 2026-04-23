@@ -18,7 +18,8 @@ import { PathRenderer } from '../ui/PathRenderer';
 import { ParticleManager } from '../ui/ParticleManager';
 import { registerParticleTextures } from '../ui/ParticleTextures';
 import { PLACEMENT_HIGHLIGHT_DEPTH, RANGE_INDICATOR_DEPTH } from '../config/gameplay';
-import { TOWER_CONFIGS, type TowerType } from '../config/towers';
+import { TOWER_CONFIGS, TOWER_ART_KEYS, type TowerType } from '../config/towers';
+import { ENEMY_ART_KEYS } from '../config/enemies';
 import {
   getCampaignWaveConfig,
   TOTAL_CAMPAIGN_WAVES,
@@ -34,8 +35,9 @@ import {
   resetEndlessFlavorCache,
   type WaveFlavor,
 } from '../config/waveFlavor';
-import { GridManager, cellKey, type CellCoord } from '../systems/GridManager';
+import { GridManager, cellKey, type CellCoord, type PixelCoord } from '../systems/GridManager';
 import { PathfindingManager } from '../systems/PathfindingManager';
+import { smoothCellPath } from '../systems/pathSmoothing';
 import { WaveManager } from '../systems/WaveManager';
 import { RunContext } from '../systems/RunContext';
 import { loadSave, writeSave } from '../systems/SaveManager';
@@ -76,6 +78,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
   private rangeIndicator!: Phaser.GameObjects.Arc;
 
   private cachedPaths = new Map<string, CellCoord[]>();
+  private cachedPixelPaths = new Map<string, PixelCoord[]>();
   private context!: RunContext;
 
   private phase: Phase = 'build';
@@ -114,11 +117,26 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.load.image('path-tile-grass', 'assets/path-tiles/grass.png');
     this.load.image('path-tile-cobble', 'assets/path-tiles/cobble.png');
     this.load.image('path-tile-brick', 'assets/path-tiles/brick.png');
+    this.load.image(TOWER_ART_KEYS.splashBody, 'assets/towers/Splash_Bear_Nemetschek.png');
+    this.load.image(TOWER_ART_KEYS.splashProjectile, 'assets/projectiles/Splash_Bear_Projectile.png');
+    this.load.image(TOWER_ART_KEYS.sniperBody, 'assets/towers/Lazer_Bear_BB.png');
+    this.load.image(TOWER_ART_KEYS.sniperProjectile, 'assets/projectiles/Lazer_Bear_Projectile.png');
+    this.load.image(ENEMY_ART_KEYS.fast, 'assets/enemies/Bug.png');
+    this.load.image(ENEMY_ART_KEYS.elite, 'assets/enemies/Ogre.png');
+    this.load.image(ENEMY_ART_KEYS.flying, 'assets/enemies/Dragon.png');
+    this.load.image(ENEMY_ART_KEYS.boss, 'assets/enemies/Scope_Creep_Boss.png');
   }
 
   async create() {
     this.resetState();
     this.cameras.main.setBackgroundColor(COLORS.background);
+
+    // Prescale tower art so heavy downscales (512 → 67 px) render crisp.
+    // WebGL mipmapping only kicks in for power-of-two sources; the Lazer Bear PNG
+    // isn't PoT, so we let the browser's canvas resampler do the downsample once.
+    this.prescaleArtTexture(TOWER_ART_KEYS.splashBody, 128);
+    this.prescaleArtTexture(TOWER_ART_KEYS.sniperBody, 128);
+
     this.grid = new GridManager();
     this.pathfinder = new PathfindingManager(this.grid, PORTAL_CELLS, CASTLE_CELLS);
 
@@ -128,7 +146,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.drawCastleArt();
 
     registerPathTextures(this);
-    this.pathRenderer = new PathRenderer(this, this.grid);
+    this.pathRenderer = new PathRenderer(this);
     this.events.once('shutdown', () => this.pathRenderer.destroy());
 
     this.placementHighlight = this.add
@@ -143,7 +161,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
       .setVisible(false);
 
     await this.recalculatePaths();
-    this.pathRenderer.render(this.cachedPaths, this.getCurrentPathTier());
+    this.pathRenderer.render(this.cachedPixelPaths, this.getCurrentPathTier());
 
     this.hud = new HUD(this);
     this.hud.setSecurity(this.security);
@@ -186,7 +204,33 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.rangeIndicator.setStrokeStyle(1.5, color, 0.75);
   }
 
-  /** Scene-wide postFX: subtle bloom per 02-01 §6. WebGL-only. */
+  /**
+   * Downsample a loaded image texture to a bounding box of `maxDim` via an offscreen
+   * canvas using the browser's high-quality resampler, then replace the texture in-place.
+   * Fixes blur on non-power-of-two art that can't benefit from WebGL mipmaps.
+   */
+  private prescaleArtTexture(key: string, maxDim: number): void {
+    if (!this.textures.exists(key)) return;
+    const source = this.textures.get(key).source[0];
+    const w0 = source.width;
+    const h0 = source.height;
+    if (Math.max(w0, h0) <= maxDim) return;
+    const scale = maxDim / Math.max(w0, h0);
+    const w = Math.max(1, Math.round(w0 * scale));
+    const h = Math.max(1, Math.round(h0 * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(source.image as CanvasImageSource, 0, 0, w, h);
+    this.textures.remove(key);
+    this.textures.addCanvas(key, canvas);
+  }
+
+  /** Scene-wide postFX: low-HP vignette only. WebGL-only. */
   private applyCameraFX(): void {
     const cam = this.cameras.main;
     if (this.game.renderer.type !== Phaser.WEBGL) return;
@@ -229,6 +273,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.paused = false;
     this.waveManager = new WaveManager();
     this.cachedPaths = new Map();
+    this.cachedPixelPaths = new Map();
     this.firstBuildHint = null;
     resetEndlessFlavorCache();
   }
@@ -349,7 +394,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.gold -= placeCost;
     this.hud.setGold(this.gold);
     await this.recalculatePaths();
-    this.pathRenderer.render(this.cachedPaths, this.getCurrentPathTier());
+    this.pathRenderer.render(this.cachedPixelPaths, this.getCurrentPathTier());
     this.hideFirstBuildHint();
     this.renderBottomBar();
   }
@@ -411,7 +456,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
 
     // Snapshot paths at wave start — enemies follow these for the duration of the wave
     await this.recalculatePaths();
-    this.pathRenderer.render(this.cachedPaths, this.getCurrentPathTier());
+    this.pathRenderer.render(this.cachedPixelPaths, this.getCurrentPathTier());
 
     const cfg = this.buildWaveConfig(nextWave);
     if (!cfg) return;
@@ -472,7 +517,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.selectedTower = null;
     this.rangeIndicator.setVisible(false);
     await this.recalculatePaths();
-    this.pathRenderer.render(this.cachedPaths, this.getCurrentPathTier());
+    this.pathRenderer.render(this.cachedPixelPaths, this.getCurrentPathTier());
     this.renderBottomBar();
   }
 
@@ -513,9 +558,9 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
       const path =
         spawn.spec.type === 'flying'
           ? this.buildFlyingPath(spawn.portal)
-          : this.cachedPaths.get(cellKey(spawn.portal.col, spawn.portal.row));
+          : this.cachedPixelPaths.get(cellKey(spawn.portal.col, spawn.portal.row));
       if (!path) continue;
-      const enemy = new Enemy(this, this.grid, spawn.spec, path);
+      const enemy = new Enemy(this, spawn.spec, path);
       this.enemies.push(enemy);
       // Boss spawn: brief camera shake per 02-01 §6.
       if (spawn.spec.type === 'boss') {
@@ -574,7 +619,9 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
         const isCrit = critChance > 0 && Math.random() < critChance;
         const damage = isCrit ? stats.damage * 2 : stats.damage;
         this.projectiles.push(
-          new SniperProjectile(this, center.x, center.y, damage, target, isCrit ? 0xffee00 : color),
+          new SniperProjectile(this, center.x, center.y, damage, target, isCrit ? 0xffee00 : color, {
+            textureKey: TOWER_CONFIGS[tower.type].art?.projectileKey,
+          }),
         );
       } else {
         const splashRadius = stats.splashRadiusTiles ?? 1;
@@ -582,6 +629,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
           tower.type === 'frost' && stats.slowMultiplier !== undefined && stats.slowDurationMs !== undefined
             ? { multiplier: stats.slowMultiplier, durationMs: stats.slowDurationMs }
             : undefined;
+        const textureKey = TOWER_CONFIGS[tower.type].art?.projectileKey;
         this.projectiles.push(
           new SplashProjectile(
             this,
@@ -592,7 +640,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
             target.y,
             splashRadius,
             color,
-            { slow, canHitFlying: tower.type === 'frost' },
+            { slow, canHitFlying: tower.type === 'frost', textureKey },
           ),
         );
       }
@@ -751,7 +799,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
         ? 'Endless · Build Phase'
         : 'Build Phase · Place towers, then Start Wave',
     );
-    this.pathRenderer.render(this.cachedPaths, this.getCurrentPathTier());
+    this.pathRenderer.render(this.cachedPixelPaths, this.getCurrentPathTier());
     this.renderBottomBar();
   }
 
@@ -876,10 +924,15 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
 
   private async recalculatePaths(): Promise<void> {
     this.cachedPaths = await this.pathfinder.recalculatePaths(this.grid.getOccupiedCells());
+    this.cachedPixelPaths = new Map();
+    for (const [key, cells] of this.cachedPaths) {
+      const smooth = smoothCellPath(cells, this.grid);
+      this.cachedPixelPaths.set(key, smooth.points);
+    }
   }
 
-  /** Straight-line path for flying enemies: [portal, nearest castle cell]. Bypasses A*. */
-  private buildFlyingPath(portal: CellCoord): CellCoord[] {
+  /** Straight-line path for flying enemies: [portal pixel, nearest castle pixel]. Bypasses A*. */
+  private buildFlyingPath(portal: CellCoord): PixelCoord[] {
     let nearest = CASTLE_CELLS[0];
     let bestDistSq = Infinity;
     for (const castle of CASTLE_CELLS) {
@@ -891,7 +944,9 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
         nearest = castle;
       }
     }
-    return [{ col: portal.col, row: portal.row }, { col: nearest.col, row: nearest.row }];
+    const start = this.grid.cellToPixel(portal.col, portal.row);
+    const end = this.grid.cellToPixel(nearest.col, nearest.row);
+    return [start, end];
   }
 
   private renderBottomBar(): void {

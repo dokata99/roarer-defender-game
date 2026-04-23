@@ -11,6 +11,8 @@ import type { RunContext } from '../systems/RunContext';
 
 /** Outer half-width of each tower's visible footprint. Shared by all three towers. */
 const TOWER_RADIUS = (CELL_SIZE - 16) / 2;
+/** Visible footprint (full width) for image-based towers. */
+const TOWER_ART_SIZE = CELL_SIZE - 12;
 
 export class Tower {
   readonly type: TowerType;
@@ -27,8 +29,18 @@ export class Tower {
   private hub: Phaser.GameObjects.Graphics | null = null;
   /** Cryolock icicle orbit (rotates counter to the spokes). Null for other towers. */
   private orbit: Phaser.GameObjects.Container | null = null;
+  /** Image body, only populated when the tower's config.art?.bodyKey is loaded. */
+  private body: Phaser.GameObjects.Image | null = null;
+  /** Level badge, only populated alongside `body`. */
+  private levelText: Phaser.GameObjects.Text | null = null;
+  /** Base scale captured after `setDisplaySize`, so pulse tweens don't drift. */
+  private baseBodyScale = 1;
+  /** Current glow FX on the container (art path only). */
+  private glowFX: Phaser.FX.Glow | null = null;
   private idleTweens: Phaser.Tweens.Tween[] = [];
   private scene: Phaser.Scene;
+  /** True when this tower renders from an image asset instead of procedural graphics. */
+  private readonly useArtPath: boolean;
   lastFireAt: number = 0;
 
   constructor(
@@ -46,14 +58,42 @@ export class Tower {
     this.row = row;
     this.totalGoldSpent = context.getPlaceCost(type);
 
+    const artKey = TOWER_CONFIGS[type].art?.bodyKey;
+    this.useArtPath = !!artKey && scene.textures.exists(artKey);
+
     this.base = scene.add.graphics();
     this.rotor = scene.add.graphics();
 
     const children: Phaser.GameObjects.GameObject[] = [this.base, this.rotor];
-    if (type === 'frost') {
+    if (type === 'frost' && !this.useArtPath) {
       this.hub = scene.add.graphics();
       this.orbit = scene.add.container(0, 0);
       children.push(this.orbit, this.hub);
+    }
+
+    if (this.useArtPath && artKey) {
+      const img = scene.add.image(0, 0, artKey);
+      // Aspect-preserving fit: square bears stay square; portrait/landscape
+      // bears shrink along the long axis to fit inside the cell.
+      const source = scene.textures.get(artKey).source[0];
+      const scale = Math.min(TOWER_ART_SIZE / source.width, TOWER_ART_SIZE / source.height);
+      img.setScale(scale);
+      this.baseBodyScale = scale;
+      this.body = img;
+      children.push(img);
+
+      const badgeOffset = TOWER_ART_SIZE * 0.32;
+      const text = scene.add
+        .text(badgeOffset, badgeOffset, '1', {
+          fontSize: '16px',
+          color: '#ffffff',
+          fontFamily: 'sans-serif',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5);
+      text.setStroke('#000000', 3);
+      this.levelText = text;
+      children.push(text);
     }
 
     this.container = scene.add.container(centerX, centerY, children);
@@ -98,10 +138,46 @@ export class Tower {
     this.totalGoldSpent += this.upgradeCost();
     this.level += 1;
     this.redraw();
-    if (this.level === MAX_TOWER_LEVEL) {
+
+    if (this.useArtPath) {
+      this.levelText?.setText(String(this.level));
+      this.applyArtTierFX();
+    } else if (this.level === MAX_TOWER_LEVEL) {
       // L3 neon halo per 02-01 §2 / 02-03 §2.5. WebGL-only; silently skipped otherwise.
       this.container.postFX?.addGlow(TOWER_CONFIGS[this.type].color, 4, 0, false);
     }
+  }
+
+  /** Art-path upgrade tiering: L2 = subtle glow, L3 = stronger glow + idle pulse. */
+  private applyArtTierFX(): void {
+    if (!this.useArtPath) return;
+    if (this.scene.renderer.type !== Phaser.WEBGL) return;
+    if (this.glowFX) {
+      this.container.postFX.remove(this.glowFX);
+      this.glowFX = null;
+    }
+    const color = TOWER_CONFIGS[this.type].color;
+    if (this.level === 2) {
+      this.glowFX = this.container.postFX.addGlow(color, 3, 0, false);
+    } else if (this.level >= 3) {
+      this.glowFX = this.container.postFX.addGlow(color, 6, 0, false);
+      this.startArtPulseTween();
+    }
+  }
+
+  private startArtPulseTween(): void {
+    if (!this.body) return;
+    const base = this.baseBodyScale;
+    this.idleTweens.push(
+      this.scene.tweens.add({
+        targets: this.body,
+        scale: { from: base * 0.97, to: base * 1.03 },
+        duration: 1500,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.InOut',
+      }),
+    );
   }
 
   sellRefund(): number {
@@ -135,6 +211,8 @@ export class Tower {
     this.rotor.clear();
     this.hub?.clear();
     if (this.orbit) this.orbit.removeAll(true);
+
+    if (this.useArtPath) return;
 
     switch (this.type) {
       case 'splash':
@@ -302,6 +380,11 @@ export class Tower {
     // Stop any existing tweens (safe on construct, defensive on re-init).
     this.idleTweens.forEach((t) => t.stop());
     this.idleTweens = [];
+
+    if (this.useArtPath) {
+      // Image path: no rotor spin. Glow + pulse are applied via applyArtTierFX on upgrade.
+      return;
+    }
 
     switch (this.type) {
       case 'splash': {
