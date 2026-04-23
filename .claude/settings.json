@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(npm run *)",
+      "Bash(echo \"Started vite; PID: $!\")",
+      "Read(//tmp/**)",
+      "Bash(cp \"C:/Users/dodon/AppData/Local/Temp/claude/e--VS-Code-roarer-defender-game/a0994721-ea6c-40c1-a02d-3632f7b0e546/tasks/b0cdx7mpn.output\" /tmp/wait-vite)",
+      "Bash(curl -sI http://localhost:5174/)",
+      "Bash(git commit *)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}

@@ -11,11 +11,10 @@ import {
   SCENE_KEYS,
   PORTAL_CELLS,
   CASTLE_CELLS,
-  PATH_LINE_COLOR,
-  PATH_LINE_ALPHA,
-  PATH_LINE_WIDTH,
-  PATH_LINE_DEPTH,
 } from '../config/constants';
+import { tierFromWave, type PathTier } from '../config/pathStyle';
+import { registerPathTextures } from '../ui/PathTextures';
+import { PathRenderer } from '../ui/PathRenderer';
 import { PLACEMENT_HIGHLIGHT_DEPTH, RANGE_INDICATOR_DEPTH } from '../config/gameplay';
 import { TOWER_CONFIGS, type TowerType } from '../config/towers';
 import {
@@ -59,7 +58,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
   private grid!: GridManager;
   private pathfinder!: PathfindingManager;
   private waveManager = new WaveManager();
-  private pathLineGraphics!: Phaser.GameObjects.Graphics;
+  private pathRenderer!: PathRenderer;
   private placementHighlight!: Phaser.GameObjects.Rectangle;
   private rangeIndicator!: Phaser.GameObjects.Arc;
 
@@ -106,8 +105,9 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.drawPortalArt();
     this.drawCastleArt();
 
-    this.pathLineGraphics = this.add.graphics();
-    this.pathLineGraphics.setDepth(PATH_LINE_DEPTH);
+    registerPathTextures(this);
+    this.pathRenderer = new PathRenderer(this, this.grid);
+    this.events.once('shutdown', () => this.pathRenderer.destroy());
 
     this.placementHighlight = this.add
       .rectangle(0, 0, CELL_SIZE, CELL_SIZE, 0xffffff, 0.15)
@@ -121,7 +121,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
       .setVisible(false);
 
     await this.recalculatePaths();
-    this.drawPathLines();
+    this.pathRenderer.render(this.cachedPaths, this.getCurrentPathTier());
 
     this.hud = new HUD(this);
     this.hud.setLives(this.lives);
@@ -278,7 +278,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.gold -= placeCost;
     this.hud.setGold(this.gold);
     await this.recalculatePaths();
-    this.drawPathLines();
+    this.pathRenderer.render(this.cachedPaths, this.getCurrentPathTier());
     this.hideFirstBuildHint();
     this.renderBottomBar();
   }
@@ -339,7 +339,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
 
     // Snapshot paths at wave start — enemies follow these for the duration of the wave
     await this.recalculatePaths();
-    this.drawPathLines();
+    this.pathRenderer.render(this.cachedPaths, this.getCurrentPathTier());
 
     const cfg = this.buildWaveConfig(nextWave);
     if (!cfg) return;
@@ -398,7 +398,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.selectedTower = null;
     this.rangeIndicator.setVisible(false);
     await this.recalculatePaths();
-    this.drawPathLines();
+    this.pathRenderer.render(this.cachedPaths, this.getCurrentPathTier());
     this.renderBottomBar();
   }
 
@@ -624,6 +624,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
         ? 'Endless · Build Phase'
         : 'Build Phase · Place towers, then Start Wave',
     );
+    this.pathRenderer.render(this.cachedPaths, this.getCurrentPathTier());
     this.renderBottomBar();
   }
 
@@ -712,20 +713,10 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     });
   }
 
-  private drawPathLines(): void {
-    this.pathLineGraphics.clear();
-    this.pathLineGraphics.lineStyle(PATH_LINE_WIDTH, PATH_LINE_COLOR, PATH_LINE_ALPHA);
-    for (const path of this.cachedPaths.values()) {
-      if (path.length < 2) continue;
-      const start = this.grid.cellToPixel(path[0].col, path[0].row);
-      this.pathLineGraphics.beginPath();
-      this.pathLineGraphics.moveTo(start.x, start.y);
-      for (let i = 1; i < path.length; i++) {
-        const p = this.grid.cellToPixel(path[i].col, path[i].row);
-        this.pathLineGraphics.lineTo(p.x, p.y);
-      }
-      this.pathLineGraphics.strokePath();
-    }
+  private getCurrentPathTier(): PathTier {
+    const targetWave = this.phase === 'wave' ? this.waveIndex : this.waveIndex + 1;
+    const cfg = this.buildWaveConfig(targetWave);
+    return tierFromWave(cfg);
   }
 
   private flashMessage(msg: string): void {
