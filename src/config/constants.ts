@@ -5,15 +5,15 @@ export const CANVAS_HEIGHT = 720;
 
 export const GRID_COLS = 13;
 export const GRID_ROWS = 7;
-export const CELL_SIZE = 72;
+export const CELL_SIZE = 79;
 
 export const GRID_PIXEL_WIDTH = GRID_COLS * CELL_SIZE;
 export const GRID_PIXEL_HEIGHT = GRID_ROWS * CELL_SIZE;
 
 export const HUD_HEIGHT = 56;
-export const BOTTOM_BAR_HEIGHT = 160;
+export const BOTTOM_BAR_HEIGHT = 110;
 
-export const GRID_OFFSET_X = (CANVAS_WIDTH - GRID_PIXEL_WIDTH) / 2;
+export const GRID_OFFSET_X = Math.floor((CANVAS_WIDTH - GRID_PIXEL_WIDTH) / 2);
 export const GRID_OFFSET_Y = HUD_HEIGHT;
 
 export const COLORS = {
