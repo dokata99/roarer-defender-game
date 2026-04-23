@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { CELL_SIZE } from '../config/constants';
 import { PATH_TEXTURE_KEYS, PATH_TILE_DEPTH, type PathTier } from '../config/pathStyle';
 import { GridManager, cellKey, type CellCoord } from '../systems/GridManager';
 
@@ -40,6 +41,7 @@ export class PathRenderer {
         const img = this.scene.add
           .image(topLeft.x, topLeft.y, textureKey)
           .setOrigin(0, 0)
+          .setDisplaySize(CELL_SIZE, CELL_SIZE)
           .setDepth(PATH_TILE_DEPTH);
         this.tiles.push(img);
       }
