@@ -15,7 +15,7 @@
 | Build Tool | **Vite** | Fast HMR, simple config, official Phaser template available |
 | Pathfinding | **easystarjs** | Lightweight A* library, integrates cleanly with grid data |
 | Data Persistence | **localStorage** | Simple, no backend needed. Stores Roarer Points and shop upgrades |
-| Deployment | **Static hosting** (Netlify / GitHub Pages / itch.io) | Output is a static HTML/JS bundle |
+| Deployment | **Vercel** (static deploy) | Vite `build` output deployed as a static site; no SSR needed since Phaser is client-only |
 
 ### Platform Target
 - **Desktop browsers only** (Chrome, Firefox, Edge, Safari)
