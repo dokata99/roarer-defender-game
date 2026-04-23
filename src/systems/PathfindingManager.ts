@@ -1,21 +1,3 @@
-// easystarjs has no bundled types; declare the shape we use.
-declare module 'easystarjs' {
-  export default class EasyStar {
-    setGrid(grid: number[][]): void;
-    setAcceptableTiles(tiles: number[]): void;
-    enableDiagonals(): void;
-    disableCornerCutting(): void;
-    findPath(
-      startX: number,
-      startY: number,
-      endX: number,
-      endY: number,
-      cb: (path: Array<{ x: number; y: number }> | null) => void,
-    ): void;
-    calculate(): void;
-  }
-}
-
 import EasyStar from 'easystarjs';
 import type { CellCoord } from './GridManager';
 import { GridManager } from './GridManager';
@@ -27,15 +9,17 @@ export function cellKey(col: number, row: number): string {
   return `${col},${row}`;
 }
 
+type EasyStarInstance = InstanceType<typeof EasyStar.js>;
+
 export class PathfindingManager {
-  private readonly easystar: EasyStar;
+  private readonly easystar: EasyStarInstance;
 
   constructor(
     private readonly grid: GridManager,
     private readonly portals: readonly CellCoord[],
     private readonly castles: readonly CellCoord[],
   ) {
-    this.easystar = new EasyStar();
+    this.easystar = new EasyStar.js();
     this.easystar.setAcceptableTiles([WALKABLE]);
     this.easystar.enableDiagonals();
     this.easystar.disableCornerCutting();
