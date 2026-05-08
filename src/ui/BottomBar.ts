@@ -76,7 +76,7 @@ export class BottomBar {
 
     const waveNum = state.nextWaveNumber.toString().padStart(2, '0');
     const heading = this.scene.add
-      .text(centerX, baseY, `WAVE ${waveNum} — ${state.nextWaveFlavor.name}`, {
+      .text(centerX, baseY, `SPRINT ${waveNum} — ${state.nextWaveFlavor.name}`, {
         fontSize: '15px',
         color: COLORS.textAccent,
         fontFamily: 'sans-serif',
@@ -166,7 +166,7 @@ export class BottomBar {
         .setOrigin(0.5, 0);
 
       const costText = this.scene.add
-        .text(x + buttonSize / 2, y + buttonSize + 20, `${stats.cost}g`, {
+        .text(x + buttonSize / 2, y + buttonSize + 20, `${stats.cost} gold`, {
           fontSize: '11px',
           color: affordable ? COLORS.textGold : COLORS.textMuted,
           fontFamily: 'sans-serif',
@@ -244,7 +244,7 @@ export class BottomBar {
 
     const previewText =
       state.nextWaveNumber != null
-        ? `Wave ${state.nextWaveNumber.toString().padStart(2, '0')}`
+        ? `Sprint ${state.nextWaveNumber.toString().padStart(2, '0')}`
         : '—';
     const preview = this.scene.add
       .text(x + width / 2, y + height / 2 + 14, previewText, {
@@ -263,8 +263,8 @@ export class BottomBar {
       : '--';
     const flavorName = state.currentWaveFlavor?.name ?? '';
     const headline = flavorName
-      ? `Wave in progress — WAVE ${waveNum}: ${flavorName}`
-      : `Wave in progress — WAVE ${waveNum}`;
+      ? `Sprint in progress — SPRINT ${waveNum}: ${flavorName}`
+      : `Sprint in progress — SPRINT ${waveNum}`;
 
     const info = this.scene.add
       .text(32, this.barY + BOTTOM_BAR_HEIGHT / 2 - 22, headline, {

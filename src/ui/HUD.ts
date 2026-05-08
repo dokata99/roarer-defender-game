@@ -15,9 +15,9 @@ export class HUD {
     bg.strokeRect(0, 0, CANVAS_WIDTH, HUD_HEIGHT);
 
     this.securityText = scene.add
-      .text(160, HUD_HEIGHT / 2, 'Security: 100%', {
+      .text(160, HUD_HEIGHT / 2, 'Security: 100% (❤️)', {
         fontSize: '20px',
-        color: COLORS.textPrimary,
+        color: '#fd4444',
         fontFamily: 'sans-serif',
       })
       .setOrigin(0, 0.5);
@@ -31,7 +31,7 @@ export class HUD {
       .setOrigin(0.5);
 
     this.waveText = scene.add
-      .text(CANVAS_WIDTH - 40, HUD_HEIGHT / 2, 'Wave: 0 / 10', {
+      .text(CANVAS_WIDTH - 40, HUD_HEIGHT / 2, 'Sprint: 0 / 10', {
         fontSize: '20px',
         color: COLORS.textPrimary,
         fontFamily: 'sans-serif',
@@ -49,7 +49,7 @@ export class HUD {
   }
 
   setSecurity(security: number): void {
-    this.securityText.setText(`Security: ${Math.max(0, security)}%`);
+    this.securityText.setText(`Security: ${Math.max(0, security)}% ❤️`);
   }
 
   setGold(gold: number): void {
@@ -57,7 +57,7 @@ export class HUD {
   }
 
   setWave(waveNumber: number, total: number): void {
-    this.waveText.setText(`Wave: ${waveNumber} / ${total}`);
+    this.waveText.setText(`Sprint: ${waveNumber} / ${total}`);
   }
 
   /** Free-form label (e.g. Endless mode: "Wave: 17"). */

@@ -91,7 +91,7 @@ export class MainMenuScene extends Phaser.Scene {
 
     if (!endlessUnlocked) {
       this.add
-        .text(CANVAS_WIDTH / 2, startY + gap + 24, 'Clear all 10 waves to unlock Endless Mode', {
+        .text(CANVAS_WIDTH / 2, startY + gap + 24, 'Clear all 20 waves to unlock Endless Mode', {
           fontSize: '12px',
           color: COLORS.textMuted,
           fontFamily: 'sans-serif',

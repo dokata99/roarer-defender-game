@@ -184,7 +184,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.hud.setPhase(
       this.mode === 'endless'
         ? 'Endless · Build Phase'
-        : 'Build Phase · Place towers, then Start Wave',
+        : 'Build Phase · Place defences, then start Sprint',
     );
 
     this.bottomBar = new BottomBar(this, this, this.context);
@@ -494,7 +494,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
 
   private updateWaveLabel(): void {
     if (this.mode === 'endless') {
-      this.hud.setWaveLabel(this.waveIndex === 0 ? 'Wave: 0 (Endless)' : `Wave: ${this.waveIndex}`);
+      this.hud.setWaveLabel(this.waveIndex === 0 ? 'Sprint: 0 (Endless)' : `Sprint: ${this.waveIndex}`);
     } else {
       this.hud.setWave(this.waveIndex, TOTAL_CAMPAIGN_WAVES);
     }
@@ -806,7 +806,7 @@ export class GameScene extends Phaser.Scene implements BottomBarController {
     this.hud.setPhase(
       this.mode === 'endless'
         ? 'Endless · Build Phase'
-        : 'Build Phase · Place towers, then Start Wave',
+        : 'Build Phase · Place defences, then start Sprint',
     );
     this.pathRenderer.render(this.cachedPixelPaths, this.getCurrentPathTier());
     this.renderBottomBar();
